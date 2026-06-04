@@ -1,11 +1,14 @@
 import Link from 'next/link';
-import { Users } from 'lucide-react';
+import { Users, UserPlus, Info } from 'lucide-react';
 import { requireRole } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/ui/page-header';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { RoleBadge } from '@/components/ui/role-badge';
 import { formatDateTime } from '@/lib/utils/format';
+import { ROLE_DEFINITIONS } from './role-permissions';
+import { MemberActions } from './member-actions';
 
 export const metadata = { title: 'Personnel — GestHotel' };
 
@@ -23,19 +26,40 @@ export default async function StaffPage() {
     <div>
       <PageHeader
         title="Personnel"
-        description="Membres de l'équipe rattachés à votre hôtel."
+        description="Invitez votre équipe et attribuez les bons droits d'accès."
+        actions={
+          <Link href="/staff/new">
+            <Button>
+              <UserPlus className="w-4 h-4" />
+              Inviter un membre
+            </Button>
+          </Link>
+        }
       />
 
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-900">
-        <strong>Inviter un nouvel employé :</strong> demandez-lui de créer son compte sur la page de connexion (un compte sera créé automatiquement), puis modifiez ici son rôle.
-        <br />
-        Sinon, créez-le manuellement depuis le dashboard Supabase &gt; Authentication &gt; Add user.
+      <div className="bg-brand-50 border border-brand-200 rounded-xl p-4 mb-4 flex items-start gap-3 text-sm text-brand-900">
+        <Info className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
+        <div>
+          <strong>Comment ajouter un employé :</strong> cliquez sur <strong>"Inviter un membre"</strong>, remplissez ses informations et choisissez son rôle. GestHotel génère un mot de passe sécurisé que vous pouvez partager par WhatsApp ou email. L'employé pourra le modifier après sa première connexion dans <em>Paramètres</em>.
+        </div>
       </div>
 
       {!staff || staff.length === 0 ? (
-        <EmptyState icon={Users} title="Aucun membre" description="Aucun profil rattaché." />
+        <EmptyState
+          icon={Users}
+          title="Vous n'avez pas encore d'équipe"
+          description="Invitez votre premier collaborateur en quelques secondes."
+          action={
+            <Link href="/staff/new">
+              <Button>
+                <UserPlus className="w-4 h-4" />
+                Inviter un membre
+              </Button>
+            </Link>
+          }
+        />
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-8">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-600 text-xs uppercase">
               <tr>
@@ -48,7 +72,7 @@ export default async function StaffPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {staff.map((s) => (
+              {staff.map((s: any) => (
                 <tr key={s.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-medium text-slate-900">{s.prenom} {s.nom}</td>
                   <td className="px-4 py-3 text-slate-600">{s.telephone ?? '—'}</td>
@@ -64,12 +88,19 @@ export default async function StaffPage() {
                     {s.derniere_connexion ? formatDateTime(s.derniere_connexion) : 'Jamais'}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/staff/${s.id}/edit`}
-                      className="text-brand-600 hover:underline text-xs font-medium"
-                    >
-                      Modifier
-                    </Link>
+                    <div className="flex justify-end items-center gap-2">
+                      <Link
+                        href={`/staff/${s.id}/edit`}
+                        className="text-brand-600 hover:underline text-xs font-medium"
+                      >
+                        Modifier
+                      </Link>
+                      <MemberActions
+                        id={s.id}
+                        nom={`${s.prenom} ${s.nom}`}
+                        isSelf={s.id === user.profile.id}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -77,6 +108,32 @@ export default async function StaffPage() {
           </table>
         </div>
       )}
+
+      {/* Matrice des rôles */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <h2 className="font-bold text-slate-900 mb-1">Droits d'accès par rôle</h2>
+        <p className="text-sm text-slate-500 mb-5">
+          Référence des permissions automatiquement accordées selon le rôle attribué à un membre.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {Object.entries(ROLE_DEFINITIONS).map(([key, def]) => (
+            <div key={key} className="border border-slate-200 rounded-xl p-4 hover:border-brand-300 transition">
+              <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded border ${def.color}`}>
+                {def.label}
+              </span>
+              <p className="text-xs text-slate-500 mt-2 mb-3">{def.short}</p>
+              <ul className="space-y-1.5">
+                {def.permissions.map((p) => (
+                  <li key={p.label} className="text-xs">
+                    <div className="font-medium text-slate-900">• {p.label}</div>
+                    <div className="text-slate-500 ml-2">{p.desc}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

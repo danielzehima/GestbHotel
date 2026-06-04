@@ -1,9 +1,24 @@
 import { requireUser } from '@/lib/auth';
 import { Sidebar } from '@/components/sidebar';
 import { RoleBadge } from '@/components/ui/role-badge';
+import { TrialBanner } from '@/components/trial-banner';
+import { createClient } from '@/lib/supabase/server';
+import { getPlanStatus } from '@/lib/plan';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+
+  // Statut du plan / essai de l'hôtel courant
+  let planStatus = null;
+  if (user.profile.hotel_id) {
+    const supabase = await createClient();
+    const { data: hotel } = await supabase
+      .from('hotels')
+      .select('plan, plan_expires_at, created_at')
+      .eq('id', user.profile.hotel_id)
+      .single();
+    if (hotel) planStatus = getPlanStatus(hotel as any);
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -23,7 +38,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <RoleBadge role={user.profile.role} />
         </header>
 
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-6 space-y-6">
+          {planStatus && <TrialBanner status={planStatus} />}
+          {children}
+        </main>
       </div>
     </div>
   );

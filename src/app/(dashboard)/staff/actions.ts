@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { requireRole } from '@/lib/auth';
 
 const schema = z.object({
@@ -58,6 +59,134 @@ export async function attachToHotel(profileId: string): Promise<ActionResult> {
     .eq('id', profileId)
     .is('hotel_id', null);
   if (error) return { ok: false, error: error.message };
+  revalidatePath('/staff');
+  return { ok: true };
+}
+
+// ---------- INVITATION D'UN MEMBRE ----------
+
+const inviteSchema = z.object({
+  email: z.string().email('Email invalide'),
+  prenom: z.string().min(1, 'Prénom requis').max(100),
+  nom: z.string().min(1, 'Nom requis').max(100),
+  telephone: z.string().optional(),
+  role: z.enum(['admin', 'receptionniste', 'menage', 'serveur', 'cuisine', 'comptable']),
+  password: z.string().min(8, 'Mot de passe : 8 caractères minimum').optional()
+});
+
+export type InviteResult =
+  | { ok: true; email: string; password: string }
+  | { ok: false; error: string };
+
+function genPassword(): string {
+  // mot de passe lisible, 12 caractères, mix lettres+chiffres
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let p = '';
+  for (let i = 0; i < 12; i++) p += chars[Math.floor(Math.random() * chars.length)];
+  return p;
+}
+
+/**
+ * Crée un compte Supabase Auth pour un nouveau membre + son profil rattaché à l'hôtel de l'admin.
+ * Renvoie l'email et le mot de passe à partager (affichés une seule fois).
+ */
+export async function inviteTeamMember(formData: FormData): Promise<InviteResult> {
+  const user = await requireRole(['admin']);
+  if (!user.profile.hotel_id) {
+    return { ok: false, error: 'Votre compte n\'est pas rattaché à un hôtel.' };
+  }
+
+  const parsed = inviteSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalide' };
+
+  const password = parsed.data.password?.trim() || genPassword();
+  const admin = createAdminClient();
+
+  // 1. Création du user Supabase Auth (email_confirm: true pour zapper la vérification)
+  const { data: created, error: createErr } = await admin.auth.admin.createUser({
+    email: parsed.data.email,
+    password,
+    email_confirm: true,
+    user_metadata: { nom: parsed.data.nom, prenom: parsed.data.prenom }
+  });
+
+  if (createErr) {
+    const msg = createErr.message.toLowerCase();
+    if (msg.includes('already') || msg.includes('exists') || msg.includes('registered')) {
+      return { ok: false, error: 'Un compte existe déjà avec cet email.' };
+    }
+    return { ok: false, error: createErr.message };
+  }
+
+  if (!created.user) return { ok: false, error: 'Création échouée.' };
+
+  // 2. Le trigger handle_new_user a créé un profil basique. On le complète.
+  const { error: profileErr } = await admin
+    .from('profiles')
+    .upsert({
+      id: created.user.id,
+      hotel_id: user.profile.hotel_id,
+      nom: parsed.data.nom,
+      prenom: parsed.data.prenom,
+      telephone: parsed.data.telephone || null,
+      role: parsed.data.role,
+      actif: true
+    });
+
+  if (profileErr) {
+    // Rollback : supprime le user Auth
+    await admin.auth.admin.deleteUser(created.user.id);
+    return { ok: false, error: profileErr.message };
+  }
+
+  revalidatePath('/staff');
+  return { ok: true, email: parsed.data.email, password };
+}
+
+/**
+ * Réinitialise le mot de passe d'un membre. Renvoie le nouveau mot de passe.
+ */
+export async function resetMemberPassword(id: string): Promise<InviteResult> {
+  const user = await requireRole(['admin']);
+  const admin = createAdminClient();
+
+  // Vérifier que le membre appartient bien à l'hôtel de l'admin
+  const { data: target } = await admin
+    .from('profiles')
+    .select('hotel_id')
+    .eq('id', id)
+    .single();
+  if (!target || target.hotel_id !== user.profile.hotel_id) {
+    return { ok: false, error: 'Membre hors de votre hôtel.' };
+  }
+
+  const newPassword = genPassword();
+  const { error } = await admin.auth.admin.updateUserById(id, { password: newPassword });
+  if (error) return { ok: false, error: error.message };
+
+  // Récup l'email pour l'afficher
+  const { data: userInfo } = await admin.auth.admin.getUserById(id);
+  return { ok: true, email: userInfo.user?.email ?? '—', password: newPassword };
+}
+
+export async function deleteMember(id: string): Promise<ActionResult> {
+  const user = await requireRole(['admin']);
+  if (id === user.profile.id) return { ok: false, error: 'Vous ne pouvez pas vous supprimer vous-même.' };
+
+  const admin = createAdminClient();
+  const { data: target } = await admin
+    .from('profiles')
+    .select('hotel_id')
+    .eq('id', id)
+    .single();
+  if (!target || target.hotel_id !== user.profile.hotel_id) {
+    return { ok: false, error: 'Membre hors de votre hôtel.' };
+  }
+
+  // Suppression cascade : profile sera supprimé via FK
+  const { error } = await admin.auth.admin.deleteUser(id);
+  if (error) return { ok: false, error: error.message };
+
   revalidatePath('/staff');
   return { ok: true };
 }

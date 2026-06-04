@@ -1,8 +1,10 @@
 import { Hotel } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PageHeader } from '@/components/ui/page-header';
-import { formatDateTime, formatMoney } from '@/lib/utils/format';
+import { formatDateTime, formatMoney, formatDate } from '@/lib/utils/format';
+import { getPlanStatus, PLAN_LABELS, PLAN_COLORS } from '@/lib/plan';
 import { HotelActions } from './hotel-actions';
+import { PlanActions } from './plan-actions';
 
 export const metadata = { title: 'Hôtels — Super Admin' };
 
@@ -39,6 +41,7 @@ export default async function SuperadminHotelsPage() {
                 <th className="text-right px-4 py-3">Chambres</th>
                 <th className="text-right px-4 py-3">Résa.</th>
                 <th className="text-right px-4 py-3">CA encaissé</th>
+                <th className="text-center px-4 py-3">Forfait</th>
                 <th className="text-center px-4 py-3">Statut</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -61,6 +64,25 @@ export default async function SuperadminHotelsPage() {
                     <td className="px-4 py-3 text-right font-semibold">{h.reservations?.length ?? 0}</td>
                     <td className="px-4 py-3 text-right font-semibold text-emerald-600">{formatMoney(revenue)}</td>
                     <td className="px-4 py-3 text-center">
+                      {(() => {
+                        const ps = getPlanStatus(h);
+                        return (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${PLAN_COLORS[ps.plan]}`}>
+                              {PLAN_LABELS[ps.plan].toUpperCase()}
+                            </span>
+                            {ps.isExpired ? (
+                              <span className="text-[10px] text-red-600 font-semibold">Expiré</span>
+                            ) : ps.daysLeft >= 0 ? (
+                              <span className="text-[10px] text-slate-500">{ps.daysLeft}j restant{ps.daysLeft > 1 ? 's' : ''}</span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400">à vie</span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-4 py-3 text-center">
                       {h.actif ? (
                         <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">ACTIF</span>
                       ) : (
@@ -68,7 +90,10 @@ export default async function SuperadminHotelsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <HotelActions id={h.id} actif={h.actif} nom={h.nom} />
+                      <div className="flex justify-end gap-1">
+                        <PlanActions id={h.id} nom={h.nom} currentPlan={h.plan ?? 'trial'} />
+                        <HotelActions id={h.id} actif={h.actif} nom={h.nom} />
+                      </div>
                     </td>
                   </tr>
                 );
