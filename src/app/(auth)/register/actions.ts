@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { sendWelcomeEmail, sendNewHotelAdminNotification } from '@/lib/email';
 
 const schema = z.object({
   email: z.string().email('Email invalide'),
@@ -111,6 +112,21 @@ export async function registerAction(_prev: RegisterState, formData: FormData): 
   if (profileError) {
     return { error: `Hôtel créé mais erreur rattachement : ${profileError.message}` };
   }
+
+  // Emails best-effort (n'échouent pas le flow d'inscription)
+  Promise.all([
+    sendWelcomeEmail({
+      email: parsed.data.email,
+      prenom: parsed.data.prenom,
+      hotelNom: parsed.data.hotel_nom
+    }),
+    sendNewHotelAdminNotification({
+      hotelNom: parsed.data.hotel_nom,
+      email: parsed.data.email,
+      prenom: parsed.data.prenom,
+      nom: parsed.data.nom
+    })
+  ]).catch(() => {});
 
   revalidatePath('/', 'layout');
   redirect('/dashboard');

@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { sendContactNotification } from '@/lib/email';
 
 const schema = z.object({
   nom: z.string().min(2, 'Nom trop court').max(100),
@@ -31,6 +32,15 @@ export async function sendContactMessage(_prev: ContactState, formData: FormData
   });
 
   if (error) return { error: 'Une erreur est survenue. Réessayez ou contactez-nous par email.' };
+
+  // Notif email vers l'admin (best-effort : on n'échoue pas si Resend renvoie une erreur)
+  sendContactNotification({
+    nom: parsed.data.nom,
+    email: parsed.data.email,
+    telephone: parsed.data.telephone,
+    sujet: parsed.data.sujet,
+    message: parsed.data.message
+  }).catch(() => {});
 
   return { success: 'Merci ! Votre message a bien été envoyé. Nous vous répondrons sous 24h ouvrées.' };
 }

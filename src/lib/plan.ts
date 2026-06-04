@@ -9,6 +9,14 @@ export const PLAN_LABELS: Record<Plan, string> = {
   premium: 'Premium'
 };
 
+// Prix mensuels (XOF) — sert au calcul MRR côté super admin
+export const PLAN_PRICES: Record<Plan, number> = {
+  trial: 0,
+  basique: 15000,
+  standard: 35000,
+  premium: 75000
+};
+
 export const PLAN_COLORS: Record<Plan, string> = {
   trial: 'bg-amber-100 text-amber-800 border-amber-300',
   basique: 'bg-slate-100 text-slate-800 border-slate-300',

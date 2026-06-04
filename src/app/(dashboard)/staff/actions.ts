@@ -139,6 +139,22 @@ export async function inviteTeamMember(formData: FormData): Promise<InviteResult
     return { ok: false, error: profileErr.message };
   }
 
+  // Récupère le nom de l'hôtel + envoie l'email d'invitation (best-effort)
+  const { data: hotelInfo } = await admin
+    .from('hotels')
+    .select('nom')
+    .eq('id', user.profile.hotel_id)
+    .single();
+
+  sendTeamInviteEmail({
+    email: parsed.data.email,
+    prenom: parsed.data.prenom,
+    nom: parsed.data.nom,
+    role: parsed.data.role,
+    password,
+    hotelNom: (hotelInfo as any)?.nom ?? 'votre hôtel'
+  }).catch(() => {});
+
   revalidatePath('/staff');
   return { ok: true, email: parsed.data.email, password };
 }
@@ -164,9 +180,24 @@ export async function resetMemberPassword(id: string): Promise<InviteResult> {
   const { error } = await admin.auth.admin.updateUserById(id, { password: newPassword });
   if (error) return { ok: false, error: error.message };
 
-  // Récup l'email pour l'afficher
+  // Récup email + prénom pour mail
   const { data: userInfo } = await admin.auth.admin.getUserById(id);
-  return { ok: true, email: userInfo.user?.email ?? '—', password: newPassword };
+  const { data: profileInfo } = await admin
+    .from('profiles')
+    .select('prenom')
+    .eq('id', id)
+    .single();
+
+  const email = userInfo.user?.email ?? '—';
+  if (email !== '—') {
+    sendPasswordResetEmail({
+      email,
+      prenom: (profileInfo as any)?.prenom ?? '',
+      newPassword
+    }).catch(() => {});
+  }
+
+  return { ok: true, email, password: newPassword };
 }
 
 export async function deleteMember(id: string): Promise<ActionResult> {
