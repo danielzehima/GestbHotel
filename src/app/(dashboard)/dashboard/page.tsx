@@ -175,7 +175,26 @@ export default async function DashboardHomePage() {
     );
   }
 
-  const d = await fetchDashboardData(user.profile.hotel_id);
+  let d: Awaited<ReturnType<typeof fetchDashboardData>>;
+  let fetchWarning: string | null = null;
+  try {
+    d = await fetchDashboardData(user.profile.hotel_id);
+  } catch (e: any) {
+    console.error('[dashboard] fetch failed:', e);
+    fetchWarning = e?.message ?? 'Erreur inconnue lors du chargement des données.';
+    // Fallback vide pour ne pas crasher la page
+    d = {
+      totalRooms: 0, occupied: 0, occupancy: 0,
+      statusCounts: { disponible: 0, occupee: 0, nettoyage: 0, maintenance: 0, hors_service: 0 },
+      arrivals: [], departures: [],
+      revenueToday: 0, revenueMonth: 0, revenueWeek: 0,
+      adr: 0, revpar: 0,
+      tasksOpen: 0, ordersCount: 0, ordersRevenue: 0, ordersPending: 0,
+      upcomingReservations: [], recentActivity: [], inHouse: [],
+      payByMethod: [], last7Days: [], maxRev: 1
+    } as any;
+  }
+
   const now = new Date();
   const greeting =
     now.getHours() < 12 ? 'Bonjour' :
@@ -183,6 +202,12 @@ export default async function DashboardHomePage() {
 
   return (
     <div className="space-y-6">
+      {fetchWarning && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">
+          <strong>⚠ Données partiellement indisponibles :</strong> {fetchWarning}
+        </div>
+      )}
+
       {/* HERO */}
       <div className="relative overflow-hidden bg-gradient-to-br from-brand-600 via-brand-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
         <div className="absolute -right-8 -top-8 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
