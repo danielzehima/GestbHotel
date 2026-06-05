@@ -9,6 +9,7 @@ import { InvoiceStatusBadge } from '@/components/ui/invoice-status-badge';
 import { formatMoney, formatDate, formatDateTime } from '@/lib/utils/format';
 import { PaymentForm } from './payment-form';
 import { CancelInvoice } from './cancel-invoice';
+import { getHotelPlanLimits } from '@/lib/plan-limits';
 
 export const metadata = { title: 'Facture — GestHotel' };
 
@@ -48,6 +49,9 @@ export default async function InvoiceDetailPage(props: { params: Promise<{ id: s
   const inv = invoice as any;
   const h = hotel as any;
   const restant = Number(inv.total) - Number(inv.montant_paye);
+
+  // Limites du plan pour filtrer les méthodes Mobile Money
+  const { limits } = await getHotelPlanLimits(user.profile.hotel_id!);
   const canCancel = (user.profile.role === 'admin' || user.profile.role === 'comptable') && inv.statut !== 'annulee' && inv.statut !== 'payee';
 
   return (
@@ -167,7 +171,7 @@ export default async function InvoiceDetailPage(props: { params: Promise<{ id: s
           {restant > 0 && inv.statut !== 'annulee' && (
             <div className="bg-white rounded-xl border border-slate-200 p-5">
               <h3 className="font-semibold mb-3">Enregistrer un paiement</h3>
-              <PaymentForm invoiceId={inv.id} maxAmount={restant} />
+              <PaymentForm invoiceId={inv.id} maxAmount={restant} allowMobileMoney={limits.mobileMoney} />
             </div>
           )}
 

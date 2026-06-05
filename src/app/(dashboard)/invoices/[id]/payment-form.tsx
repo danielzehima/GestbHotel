@@ -7,17 +7,26 @@ import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/input';
 import { recordPayment } from '../actions';
 
-const METHODS = [
-  { v: 'especes', l: 'Espèces', icon: Banknote, color: 'bg-emerald-50 border-emerald-200 text-emerald-900' },
-  { v: 'wave', l: 'Wave', icon: Smartphone, color: 'bg-sky-50 border-sky-200 text-sky-900' },
-  { v: 'orange_money', l: 'Orange Money', icon: Smartphone, color: 'bg-orange-50 border-orange-200 text-orange-900' },
-  { v: 'mtn_money', l: 'MTN Money', icon: Smartphone, color: 'bg-yellow-50 border-yellow-200 text-yellow-900' },
-  { v: 'moov_money', l: 'Moov Money', icon: Smartphone, color: 'bg-blue-50 border-blue-200 text-blue-900' },
-  { v: 'carte', l: 'Carte bancaire', icon: CreditCard, color: 'bg-slate-50 border-slate-200 text-slate-900' },
-  { v: 'virement', l: 'Virement', icon: Building2, color: 'bg-purple-50 border-purple-200 text-purple-900' }
+const ALL_METHODS = [
+  { v: 'especes', l: 'Espèces', icon: Banknote, color: 'bg-emerald-50 border-emerald-200 text-emerald-900', mobile: false },
+  { v: 'wave', l: 'Wave', icon: Smartphone, color: 'bg-sky-50 border-sky-200 text-sky-900', mobile: true },
+  { v: 'orange_money', l: 'Orange Money', icon: Smartphone, color: 'bg-orange-50 border-orange-200 text-orange-900', mobile: true },
+  { v: 'mtn_money', l: 'MTN Money', icon: Smartphone, color: 'bg-yellow-50 border-yellow-200 text-yellow-900', mobile: true },
+  { v: 'moov_money', l: 'Moov Money', icon: Smartphone, color: 'bg-blue-50 border-blue-200 text-blue-900', mobile: true },
+  { v: 'carte', l: 'Carte bancaire', icon: CreditCard, color: 'bg-slate-50 border-slate-200 text-slate-900', mobile: false },
+  { v: 'virement', l: 'Virement', icon: Building2, color: 'bg-purple-50 border-purple-200 text-purple-900', mobile: false }
 ] as const;
 
-export function PaymentForm({ invoiceId, maxAmount }: { invoiceId: string; maxAmount: number }) {
+export function PaymentForm({
+  invoiceId,
+  maxAmount,
+  allowMobileMoney = true
+}: {
+  invoiceId: string;
+  maxAmount: number;
+  allowMobileMoney?: boolean;
+}) {
+  const METHODS = allowMobileMoney ? ALL_METHODS : ALL_METHODS.filter((m) => !m.mobile);
   const [pending, start] = useTransition();
   const [methode, setMethode] = useState<string>('especes');
   const [montant, setMontant] = useState(maxAmount);

@@ -99,8 +99,20 @@ export async function inviteTeamMember(formData: FormData): Promise<InviteResult
   const parsed = inviteSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalide' };
 
-  const password = parsed.data.password?.trim() || genPassword();
+  // Vérif limite utilisateurs du forfait
+  const { limits, isExpired } = await getHotelPlanLimits(user.profile.hotel_id);
+  if (isExpired) return { ok: false, error: 'Votre forfait a expiré. Renouvelez-le pour ajouter des membres.' };
+
   const admin = createAdminClient();
+  const { count: currentUsers } = await admin
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('hotel_id', user.profile.hotel_id);
+
+  const limitErr = checkLimit(currentUsers ?? 0, limits.maxUsers, 'utilisateur(s)');
+  if (limitErr) return { ok: false, error: limitErr };
+
+  const password = parsed.data.password?.trim() || genPassword();
 
   // 1. Création du user Supabase Auth (email_confirm: true pour zapper la vérification)
   const { data: created, error: createErr } = await admin.auth.admin.createUser({

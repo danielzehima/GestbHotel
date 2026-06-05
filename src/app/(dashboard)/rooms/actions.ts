@@ -4,7 +4,17 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { requireRole, requireUser } from '@/lib/auth';
+import { getHotelPlanLimits, checkLimit } from '@/lib/plan-limits';
 import type { RoomStatus } from '@/types/database';
+
+async function countHotelRooms(hotelId: string): Promise<number> {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from('rooms')
+    .select('id', { count: 'exact', head: true })
+    .eq('hotel_id', hotelId);
+  return count ?? 0;
+}
 
 // ----- TYPES DE CHAMBRES -----
 
@@ -86,6 +96,15 @@ export async function upsertRoom(formData: FormData, id?: string): Promise<Actio
     return { ok: false, error: parsed.error.issues[0]?.message ?? 'Données invalides' };
   }
 
+  // Limite plan : uniquement à la création (pas à l'édition)
+  if (!id) {
+    const { limits, isExpired } = await getHotelPlanLimits(user.profile.hotel_id!);
+    if (isExpired) return { ok: false, error: 'Votre forfait a expiré. Renouvelez-le pour ajouter des chambres.' };
+    const current = await countHotelRooms(user.profile.hotel_id!);
+    const limitErr = checkLimit(current, limits.maxRooms, 'chambre(s)');
+    if (limitErr) return { ok: false, error: limitErr };
+  }
+
   const supabase = await createClient();
   const payload = {
     hotel_id: user.profile.hotel_id!,
@@ -130,6 +149,18 @@ export async function bulkCreateRooms(formData: FormData): Promise<ActionResult 
   const user = await requireRole(['admin', 'receptionniste']);
   const parsed = bulkSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalide' };
+
+  // Vérif limite plan
+  const { limits, isExpired } = await getHotelPlanLimits(user.profile.hotel_id!);
+  if (isExpired) return { ok: false, error: 'Votre forfait a expiré. Renouvelez-le pour ajouter des chambres.' };
+  const current = await countHotelRooms(user.profile.hotel_id!);
+  if (current + parsed.data.nombre > limits.maxRooms) {
+    const restant = Math.max(0, limits.maxRooms - current);
+    return {
+      ok: false,
+      error: `Votre forfait permet ${limits.maxRooms} chambres maximum. Vous en avez ${current}, vous pouvez en créer ${restant} de plus seulement. Passez à un forfait supérieur pour plus.`
+    };
+  }
 
   const supabase = await createClient();
   const prefixe = parsed.data.prefixe ?? '';

@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { HotelForm } from './hotel-form';
 import { ProfileForm } from './profile-form';
 import { PasswordForm } from './password-form';
+import { PlanSection } from './plan-section';
 
 export const metadata = { title: 'Paramètres — GestHotel' };
 
@@ -25,6 +26,9 @@ export default async function SettingsPage() {
       <PageHeader title="Paramètres" description="Configurez votre hôtel et votre compte." />
 
       <div className="space-y-6 max-w-3xl">
+        {/* Plan et limites (tous les rôles, mais visible si hôtel rattaché) */}
+        {user.profile.hotel_id && <PlanSection hotelId={user.profile.hotel_id} />}
+
         {/* Hôtel — admin uniquement */}
         {isAdmin && hotel && (
           <Section icon={Hotel} title="Informations de l'hôtel" description="Apparaît sur les factures et le menu public.">
