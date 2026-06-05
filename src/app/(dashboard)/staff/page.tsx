@@ -14,13 +14,32 @@ export const metadata = { title: 'Personnel — GestHotel' };
 
 export default async function StaffPage() {
   const user = await requireRole(['admin']);
-  const supabase = await createClient();
 
-  const { data: staff } = await supabase
+  if (!user.profile.hotel_id) {
+    return (
+      <div className="max-w-xl mx-auto mt-12 p-6 bg-amber-50 border border-amber-200 rounded-xl">
+        <h2 className="font-semibold text-amber-900 mb-2">Compte non rattaché</h2>
+        <p className="text-sm text-amber-800">
+          Votre compte n'est associé à aucun hôtel.
+        </p>
+      </div>
+    );
+  }
+
+  const supabase = await createClient();
+  const { data: staffRaw, error } = await supabase
     .from('profiles')
     .select('id, nom, prenom, telephone, role, actif, derniere_connexion')
-    .eq('hotel_id', user.profile.hotel_id!)
+    .eq('hotel_id', user.profile.hotel_id)
     .order('nom');
+
+  if (error) {
+    throw new Error(`Impossible de charger l'équipe : ${error.message}`);
+  }
+
+  // Filtre défensif : exclut tout profil malformé (sans rôle valide)
+  const validRoles = ['admin', 'receptionniste', 'menage', 'serveur', 'cuisine', 'comptable', 'super_admin'];
+  const staff = (staffRaw ?? []).filter((s: any) => s && s.id && validRoles.includes(s.role));
 
   return (
     <div>
