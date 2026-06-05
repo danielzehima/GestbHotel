@@ -16,32 +16,68 @@ export type CurrentUser = {
   };
 };
 
-export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+export type AuthState =
+  | { kind: 'anonymous' }
+  | { kind: 'no_profile'; authUserId: string; email: string }
+  | { kind: 'ok'; user: CurrentUser };
+
+/**
+ * Récupère l'état d'auth complet. Différencie :
+ * - anonymous : pas de session
+ * - no_profile : session présente mais aucun profil en base (rare, dégradé)
+ * - ok : session + profil OK
+ */
+export const getAuthState = cache(async (): Promise<AuthState> => {
   const supabase = await createClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();
-  if (!user) return null;
+  if (!user) return { kind: 'anonymous' };
 
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from('profiles')
     .select('id, hotel_id, nom, prenom, role, avatar_url')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
-  if (!profile) return null;
+  if (error || !profile) {
+    return { kind: 'no_profile', authUserId: user.id, email: user.email ?? '' };
+  }
 
   return {
-    id: user.id,
-    email: user.email ?? '',
-    profile: profile as CurrentUser['profile']
+    kind: 'ok',
+    user: {
+      id: user.id,
+      email: user.email ?? '',
+      profile: profile as CurrentUser['profile']
+    }
   };
 });
 
+/**
+ * Variante legacy compatible — renvoie le user OU null.
+ */
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  const state = await getAuthState();
+  return state.kind === 'ok' ? state.user : null;
+});
+
+/**
+ * Bloque l'accès si pas authentifié. Si le profil est manquant,
+ * laisse la page se rendre avec une information dégradée (évite les boucles).
+ */
 export async function requireUser(): Promise<CurrentUser> {
-  const user = await getCurrentUser();
-  if (!user) redirect('/login');
-  return user;
+  const state = await getAuthState();
+  if (state.kind === 'anonymous') redirect('/login');
+  if (state.kind === 'no_profile') {
+    // On ne redirige PAS pour éviter les boucles. On lance une erreur explicite
+    // que le error boundary affichera.
+    throw new Error(
+      `Votre profil utilisateur est introuvable (auth_id: ${state.authUserId}, email: ${state.email}). ` +
+      `Contactez l'administrateur ou tentez de vous réinscrire.`
+    );
+  }
+  return state.user;
 }
 
 export async function requireRole(allowed: UserRole[]): Promise<CurrentUser> {
