@@ -3,61 +3,12 @@ import { Check, Sparkles, MessageCircle, Mail, Phone, ArrowLeft, ShieldCheck } f
 import { requireUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { getPlanStatus, PLAN_LABELS } from '@/lib/plan';
+import { getPlanPrices } from '@/lib/plan-prices';
 import { PageHeader } from '@/components/ui/page-header';
 import { formatDate } from '@/lib/utils/format';
 
 export const metadata = { title: 'Forfaits — GestHotel' };
-
-const PLANS = [
-  {
-    key: 'basique',
-    nom: 'Basique',
-    prix: 15000,
-    desc: 'Petits hôtels et maisons d\'hôtes (jusqu\'à 10 chambres).',
-    features: [
-      'Jusqu\'à 10 chambres',
-      'Réservations & calendrier',
-      'Gestion des clients',
-      'Facturation manuelle',
-      '2 utilisateurs maximum',
-      'Support par email'
-    ]
-  },
-  {
-    key: 'standard',
-    nom: 'Standard',
-    prix: 35000,
-    highlight: true,
-    desc: 'Hôtels moyens avec restaurant (jusqu\'à 40 chambres).',
-    features: [
-      'Jusqu\'à 40 chambres',
-      'Tout le plan Basique',
-      'Restaurant + QR code',
-      'Interface cuisine',
-      'Paiements Mobile Money',
-      'Plannings du personnel',
-      'Pointage employés',
-      '10 utilisateurs',
-      'Support prioritaire'
-    ]
-  },
-  {
-    key: 'premium',
-    nom: 'Premium',
-    prix: 75000,
-    desc: 'Groupes hôteliers et grandes structures.',
-    features: [
-      'Chambres illimitées',
-      'Tout le plan Standard',
-      'Multi-établissements',
-      'Rapports avancés',
-      'Domaine personnalisé',
-      'Utilisateurs illimités',
-      'Support dédié 24/7',
-      'Formation sur site'
-    ]
-  }
-];
+export const dynamic = 'force-dynamic';
 
 const PAYMENT_PHONE = '+225 07 10 07 52 57';
 const PAYMENT_PHONE_RAW = '+2250710075257';
@@ -80,6 +31,19 @@ export default async function UpgradePage() {
       hotelNom = (hotel as any).nom;
     }
   }
+
+  // Charge les forfaits dynamiques depuis la DB
+  const allPrices = await getPlanPrices();
+  const PLANS = allPrices
+    .filter((p) => p.active)
+    .map((p) => ({
+      key: p.plan,
+      nom: p.nom,
+      prix: p.prix_mensuel,
+      desc: p.description ?? '',
+      features: p.features,
+      highlight: p.highlight
+    }));
 
   return (
     <div className="space-y-6">

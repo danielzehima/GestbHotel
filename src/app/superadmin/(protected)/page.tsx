@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatMoney, formatDate, formatDateTime } from '@/lib/utils/format';
-import { getPlanStatus, PLAN_PRICES, PLAN_LABELS, PLAN_COLORS, type Plan } from '@/lib/plan';
+import { getPlanStatus, PLAN_LABELS, PLAN_COLORS, type Plan } from '@/lib/plan';
+import { getPlanPrices } from '@/lib/plan-prices';
 
 export const metadata = { title: 'Super Admin — GestHotel' };
 export const dynamic = 'force-dynamic';
@@ -48,6 +49,11 @@ export default async function SuperadminDashboard() {
 
   const allHotels = (hotels.data ?? []) as any[];
 
+  // Récupère les prix dynamiques (depuis la table plan_prices)
+  const planPrices = await getPlanPrices();
+  const priceMap: Record<string, number> = { trial: 0 };
+  planPrices.forEach((p) => { priceMap[p.plan] = p.prix_mensuel; });
+
   // Calcul des KPIs SaaS
   const totalHotels = allHotels.length;
   const totalUsers = profiles.count ?? 0;
@@ -69,7 +75,7 @@ export default async function SuperadminDashboard() {
     } else {
       // Plan actif
       if (h.plan !== 'trial') {
-        mrr += PLAN_PRICES[h.plan as Plan] ?? 0;
+        mrr += priceMap[h.plan] ?? 0;
         totalPaid++;
       } else if (status.daysLeft <= 7) {
         trialsExpiringSoon++;
@@ -185,14 +191,15 @@ export default async function SuperadminDashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {(['trial', 'basique', 'standard', 'premium'] as Plan[]).map((p) => {
             const count = countsByPlan[p];
-            const mrrContribution = count * (PLAN_PRICES[p] ?? 0);
+            const price = priceMap[p] ?? 0;
+            const mrrContribution = count * price;
             return (
               <div key={p} className="border border-slate-200 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${PLAN_COLORS[p]}`}>
                     {PLAN_LABELS[p].toUpperCase()}
                   </span>
-                  <span className="text-xs text-slate-400">{formatMoney(PLAN_PRICES[p])}/mois</span>
+                  <span className="text-xs text-slate-400">{formatMoney(price)}/mois</span>
                 </div>
                 <div className="text-2xl font-bold text-slate-900">{count}</div>
                 {p !== 'trial' && (
@@ -234,7 +241,7 @@ export default async function SuperadminDashboard() {
                         {PLAN_LABELS[h.plan as Plan].toUpperCase()}
                       </span>
                       <div className="text-xs text-emerald-600 font-semibold mt-0.5">
-                        + {formatMoney(PLAN_PRICES[h.plan as Plan])}/mois
+                        + {formatMoney(priceMap[h.plan] ?? 0)}/mois
                       </div>
                     </div>
                   </li>

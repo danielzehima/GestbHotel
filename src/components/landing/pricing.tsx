@@ -1,59 +1,7 @@
 import Link from 'next/link';
 import { Check, Sparkles } from 'lucide-react';
-
-const PLANS = [
-  {
-    name: 'Basique',
-    price: '15 000',
-    desc: 'Pour les petits hôtels et maisons d\'hôtes (jusqu\'à 10 chambres).',
-    cta: 'Démarrer',
-    highlight: false,
-    features: [
-      'Jusqu\'à 10 chambres',
-      'Réservations & calendrier',
-      'Gestion des clients',
-      'Facturation manuelle',
-      '2 utilisateurs maximum',
-      'Support par email'
-    ]
-  },
-  {
-    name: 'Standard',
-    price: '35 000',
-    desc: 'Pour les hôtels moyens avec restaurant (jusqu\'à 40 chambres).',
-    cta: 'Démarrer l\'essai',
-    highlight: true,
-    features: [
-      'Jusqu\'à 40 chambres',
-      'Tout le plan Basique',
-      'Restaurant + QR code',
-      'Interface cuisine',
-      'Paiements Mobile Money',
-      'Plannings du personnel',
-      'Pointage employés',
-      '10 utilisateurs',
-      'Support prioritaire'
-    ]
-  },
-  {
-    name: 'Premium',
-    price: '75 000',
-    desc: 'Pour les groupes hôteliers et grandes structures.',
-    cta: 'Nous contacter',
-    highlight: false,
-    features: [
-      'Chambres illimitées',
-      'Tout le plan Standard',
-      'Multi-établissements',
-      'API personnalisée',
-      'Rapports avancés (export)',
-      'Domaine personnalisé',
-      'Utilisateurs illimités',
-      'Support dédié 24/7',
-      'Formation sur site'
-    ]
-  }
-];
+import { getPlanPrices } from '@/lib/plan-prices';
+import { formatMoney } from '@/lib/utils/format';
 
 const PAYMENTS = [
   { name: 'Wave', color: 'bg-sky-500' },
@@ -64,7 +12,10 @@ const PAYMENTS = [
   { name: 'Visa / Mastercard', color: 'bg-slate-700' }
 ];
 
-export function Pricing() {
+export async function Pricing() {
+  const all = await getPlanPrices();
+  const plans = all.filter((p) => p.active);
+
   return (
     <section id="pricing" className="py-20 sm:py-28 bg-gradient-to-b from-slate-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -80,9 +31,9 @@ export function Pricing() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-4 max-w-5xl mx-auto">
-          {PLANS.map((p) => (
+          {plans.map((p) => (
             <div
-              key={p.name}
+              key={p.plan}
               className={`relative rounded-2xl p-6 sm:p-8 transition ${
                 p.highlight
                   ? 'bg-gradient-to-br from-brand-600 to-indigo-700 text-white shadow-2xl shadow-brand-600/30 scale-[1.02] lg:scale-105 border-0'
@@ -96,12 +47,14 @@ export function Pricing() {
                 </div>
               )}
 
-              <h3 className={`text-xl font-bold ${p.highlight ? 'text-white' : 'text-slate-900'}`}>{p.name}</h3>
-              <p className={`mt-2 text-sm ${p.highlight ? 'text-brand-100' : 'text-slate-500'}`}>{p.desc}</p>
+              <h3 className={`text-xl font-bold ${p.highlight ? 'text-white' : 'text-slate-900'}`}>{p.nom}</h3>
+              {p.description && (
+                <p className={`mt-2 text-sm ${p.highlight ? 'text-brand-100' : 'text-slate-500'}`}>{p.description}</p>
+              )}
 
               <div className="mt-6 mb-6">
                 <span className={`text-4xl sm:text-5xl font-bold ${p.highlight ? 'text-white' : 'text-slate-900'}`}>
-                  {p.price}
+                  {p.prix_mensuel.toLocaleString('fr-FR')}
                 </span>
                 <span className={`ml-1 text-sm ${p.highlight ? 'text-brand-100' : 'text-slate-500'}`}>
                   FCFA / mois
@@ -116,7 +69,7 @@ export function Pricing() {
                     : 'bg-brand-600 text-white hover:bg-brand-700 shadow'
                 }`}
               >
-                {p.cta}
+                {p.highlight ? 'Démarrer l\'essai' : 'Démarrer'}
               </Link>
 
               <ul className="space-y-2.5">

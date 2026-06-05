@@ -6,7 +6,7 @@ import { FAQ } from '@/components/landing/faq';
 import { CTA } from '@/components/landing/cta';
 import { Footer } from '@/components/landing/footer';
 
-export default function HomePage() {
+export default async function HomePage() {
   return (
     <>
       <Navbar />

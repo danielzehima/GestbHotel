@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Hotel, Users, Mail, LogOut, ShieldCheck, ArrowLeftCircle
+  LayoutDashboard, Hotel, Users, Mail, LogOut, ShieldCheck, ArrowLeftCircle, CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { superadminLogout } from '../actions';
@@ -12,6 +12,7 @@ const NAV = [
   { href: '/superadmin', label: "Vue d'ensemble", icon: LayoutDashboard, exact: true },
   { href: '/superadmin/hotels', label: 'Hôtels', icon: Hotel },
   { href: '/superadmin/users', label: 'Utilisateurs', icon: Users },
+  { href: '/superadmin/plans', label: 'Tarifs', icon: CreditCard },
   { href: '/superadmin/messages', label: 'Messages contact', icon: Mail }
 ];
 

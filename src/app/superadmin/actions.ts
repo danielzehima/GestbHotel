@@ -82,6 +82,45 @@ export async function extendTrial(id: string, days: number): Promise<ActionResul
   return { ok: true };
 }
 
+// ----- TARIFS DES FORFAITS -----
+
+export async function updatePlanPrice(
+  plan: 'basique' | 'standard' | 'premium',
+  data: {
+    nom: string;
+    prix_mensuel: number;
+    description?: string;
+    features: string[];
+    highlight?: boolean;
+    active?: boolean;
+    ordre?: number;
+  }
+): Promise<ActionResult> {
+  await requireSuperadmin();
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from('plan_prices')
+    .upsert({
+      plan,
+      nom: data.nom,
+      prix_mensuel: data.prix_mensuel,
+      description: data.description ?? null,
+      features: data.features,
+      highlight: data.highlight ?? false,
+      active: data.active ?? true,
+      ordre: data.ordre ?? 0
+    });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/superadmin/plans');
+  revalidatePath('/superadmin');
+  revalidatePath('/upgrade');
+  revalidatePath('/');
+  return { ok: true };
+}
+
 // ----- USERS -----
 
 export async function toggleUserActive(id: string, actif: boolean): Promise<ActionResult> {
