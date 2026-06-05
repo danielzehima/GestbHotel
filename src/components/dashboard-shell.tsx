@@ -18,16 +18,18 @@ export function DashboardShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar
-        role={role}
-        user={user}
-        mobileOpen={mobileOpen}
-        onMobileClose={() => setMobileOpen(false)}
-      />
+    <div className="flex min-h-screen bg-slate-50 print:bg-white print:min-h-0 print:block">
+      <div className="print:hidden">
+        <Sidebar
+          role={role}
+          user={user}
+          mobileOpen={mobileOpen}
+          onMobileClose={() => setMobileOpen(false)}
+        />
+      </div>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 sm:h-16 bg-white border-b border-slate-200 flex items-center justify-between px-3 sm:px-6 sticky top-0 z-30 gap-2">
+      <div className="flex-1 flex flex-col min-w-0 print:block">
+        <header className="h-14 sm:h-16 bg-white border-b border-slate-200 flex items-center justify-between px-3 sm:px-6 sticky top-0 z-30 gap-2 print:hidden">
           {/* Hamburger mobile */}
           <button
             type="button"
@@ -57,7 +59,7 @@ export function DashboardShell({
           </div>
         </header>
 
-        <main className="flex-1 p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 min-w-0">
+        <main className="flex-1 p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 min-w-0 print:p-0 print:space-y-0">
           {children}
         </main>
       </div>

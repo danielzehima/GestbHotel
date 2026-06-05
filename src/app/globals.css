@@ -12,3 +12,23 @@ html, body {
   background: rgb(var(--bg));
   color: rgb(var(--fg));
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   STYLES IMPRESSION
+   - Fond blanc, pas de marges parasites
+   - Évite la bannière essai, sidebar, header dashboard
+   - Pas d'en-têtes/pieds navigateur (date/URL)
+   ────────────────────────────────────────────────────────────────── */
+@media print {
+  html, body {
+    background: #ffffff !important;
+    height: auto !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  @page {
+    margin: 12mm;
+    size: A4;
+  }
+}

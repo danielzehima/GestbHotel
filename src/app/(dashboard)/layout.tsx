@@ -81,11 +81,15 @@ on conflict (id) do nothing;`}
       user={{ nom: user.profile.nom, prenom: user.profile.prenom, email: user.email }}
     >
       {planWarning && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 print:hidden">
           ⚠ {planWarning}
         </div>
       )}
-      {planStatus && <TrialBanner status={planStatus} />}
+      {planStatus && (
+        <div className="print:hidden">
+          <TrialBanner status={planStatus} />
+        </div>
+      )}
       {children}
     </DashboardShell>
   );
