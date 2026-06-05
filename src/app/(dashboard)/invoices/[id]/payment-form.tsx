@@ -80,16 +80,28 @@ export function PaymentForm({
       </div>
 
       <Field label="Montant (XOF)" required>
-        <Input
-          name="montant"
-          type="number"
-          min={1}
-          max={maxAmount}
-          step={100}
-          value={montant}
-          onChange={(e) => setMontant(Number(e.target.value))}
-          required
-        />
+        <div className="flex gap-2">
+          <Input
+            name="montant"
+            type="number"
+            min={1}
+            max={maxAmount}
+            step="any"
+            value={montant}
+            onChange={(e) => setMontant(Number(e.target.value))}
+            required
+          />
+          {montant !== maxAmount && (
+            <button
+              type="button"
+              onClick={() => setMontant(maxAmount)}
+              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded whitespace-nowrap"
+              title="Encaisser la totalité du restant dû"
+            >
+              Tout
+            </button>
+          )}
+        </div>
       </Field>
 
       {needsRef && (
