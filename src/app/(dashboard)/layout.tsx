@@ -1,14 +1,71 @@
-import { requireUser } from '@/lib/auth';
+import Link from 'next/link';
+import { AlertTriangle, LogOut, RefreshCw } from 'lucide-react';
+import { redirect } from 'next/navigation';
+import { getAuthState } from '@/lib/auth';
 import { Sidebar } from '@/components/sidebar';
 import { RoleBadge } from '@/components/ui/role-badge';
 import { TrialBanner } from '@/components/trial-banner';
 import { createClient } from '@/lib/supabase/server';
 import { getPlanStatus } from '@/lib/plan';
+import { logoutAction } from '@/app/(auth)/login/actions';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireUser();
+  const state = await getAuthState();
 
-  // Récup plan — totalement défensif, ne doit JAMAIS faire planter le layout
+  // Pas connecté → redirection propre vers login
+  if (state.kind === 'anonymous') {
+    redirect('/login');
+  }
+
+  // Connecté mais profil manquant → message clair (PAS de throw, PAS de redirect)
+  if (state.kind === 'no_profile') {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+        <div className="max-w-xl w-full bg-white border-2 border-amber-300 rounded-2xl p-6 shadow">
+          <div className="flex items-start gap-3 mb-4">
+            <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <h1 className="text-lg font-bold text-slate-900">Profil utilisateur introuvable</h1>
+              <p className="text-sm text-slate-600 mt-1">
+                Votre compte d'authentification existe (<strong>{state.email}</strong>) mais aucun profil n'est associé en base.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded p-3 mb-4 text-sm text-amber-900">
+            <strong>Solution rapide :</strong> demandez à l'administrateur SaaS d'exécuter ce SQL dans Supabase :
+            <pre className="bg-white border border-amber-100 rounded p-2 mt-2 text-xs font-mono overflow-x-auto">
+{`insert into profiles (id, nom, prenom, role)
+values ('${state.authUserId}', 'À renseigner', 'À renseigner', 'receptionniste'::user_role)
+on conflict (id) do nothing;`}
+            </pre>
+          </div>
+
+          <div className="flex gap-2">
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded"
+              >
+                <LogOut className="w-4 h-4" />
+                Se déconnecter
+              </button>
+            </form>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium px-4 py-2 rounded hover:bg-slate-50"
+            >
+              Retour accueil
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  const user = state.user;
+
+  // Plan / essai — défensif
   let planStatus: any = null;
   let planWarning: string | null = null;
 
@@ -22,15 +79,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
         .maybeSingle();
 
       if (error) {
-        // Migration plan/plan_expires_at probablement non exécutée
-        planWarning = `Migration manquante (hotels.plan / plan_expires_at). Détail : ${error.message}`;
-        console.error('[layout] fetch hotel plan failed:', error.message);
+        planWarning = `Migration manquante (hotels.plan). ${error.message}`;
+        console.error('[layout] fetch hotel plan:', error.message);
       } else if (hotel) {
         planStatus = getPlanStatus(hotel as any);
       }
     } catch (e: any) {
       planWarning = `Erreur récup plan : ${e?.message ?? 'inconnue'}`;
-      console.error('[layout] plan fetch threw:', e);
+      console.error('[layout] plan threw:', e);
     }
   }
 
