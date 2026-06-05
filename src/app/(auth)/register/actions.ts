@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWelcomeEmail, sendNewHotelAdminNotification } from '@/lib/email';
 
 const schema = z.object({
@@ -77,13 +78,15 @@ export async function registerAction(_prev: RegisterState, formData: FormData): 
     };
   }
 
-  // 3. Création de l'hôtel + rattachement
+  // 3. Création de l'hôtel + rattachement — via service_role (bypass RLS)
+  //    Légitime ici : on est dans le flow d'inscription contrôlé côté serveur.
+  const admin = createAdminClient();
+
   let slug = slugify(parsed.data.hotel_nom);
-  // Vérifie unicité du slug
-  const { data: existing } = await supabase.from('hotels').select('id').eq('slug', slug).maybeSingle();
+  const { data: existing } = await admin.from('hotels').select('id').eq('slug', slug).maybeSingle();
   if (existing) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
 
-  const { data: hotel, error: hotelError } = await supabase
+  const { data: hotel, error: hotelError } = await admin
     .from('hotels')
     .insert({
       nom: parsed.data.hotel_nom,
@@ -98,8 +101,8 @@ export async function registerAction(_prev: RegisterState, formData: FormData): 
     return { error: `Compte créé mais erreur hôtel : ${hotelError?.message ?? 'inconnue'}. Contactez le support.` };
   }
 
-  // 4. Mise à jour du profil : admin de l'hôtel
-  const { error: profileError } = await supabase
+  // 4. Mise à jour du profil : admin de l'hôtel (via service_role aussi pour cohérence)
+  const { error: profileError } = await admin
     .from('profiles')
     .update({
       hotel_id: hotel.id,
