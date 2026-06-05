@@ -70,8 +70,8 @@ export default async function GuestsPage(props: { searchParams: Promise<SearchPa
           }
         />
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+          <table className="w-full text-sm min-w-[600px]">
             <thead className="bg-slate-50 text-slate-600 text-xs uppercase">
               <tr>
                 <th className="text-left px-4 py-3">Nom</th>
