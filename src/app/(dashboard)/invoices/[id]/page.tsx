@@ -168,12 +168,34 @@ export default async function InvoiceDetailPage(props: { params: Promise<{ id: s
 
         {/* Panneau paiements */}
         <div className="space-y-4 print:hidden">
-          {restant > 0 && inv.statut !== 'annulee' && (
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <h3 className="font-semibold mb-3">Enregistrer un paiement</h3>
-              <PaymentForm invoiceId={inv.id} maxAmount={restant} allowMobileMoney={limits.mobileMoney} />
-            </div>
-          )}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h3 className="font-semibold mb-3">Encaissement</h3>
+
+            {inv.statut === 'annulee' ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+                <strong>Facture annulée</strong>
+                <p className="text-xs mt-1">Aucun nouveau paiement ne peut être enregistré.</p>
+              </div>
+            ) : restant <= 0 ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-800">
+                <strong>✓ Facture entièrement payée</strong>
+                <p className="text-xs mt-1">
+                  Total encaissé : <strong>{formatMoney(Number(inv.montant_paye))}</strong>
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-sm text-amber-900">
+                  Restant dû : <strong>{formatMoney(restant)}</strong>
+                </div>
+                <PaymentForm
+                  invoiceId={inv.id}
+                  maxAmount={restant}
+                  allowMobileMoney={limits.mobileMoney}
+                />
+              </>
+            )}
+          </div>
 
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <h3 className="font-semibold mb-3">Historique des paiements</h3>
