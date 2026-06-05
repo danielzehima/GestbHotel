@@ -6,18 +6,23 @@ import { AutoPrint } from './auto-print';
 
 export const metadata = { title: 'Impression facture' };
 
+function isUuid(s: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
+
 export default async function PrintInvoicePage(props: { params: Promise<{ id: string }> }) {
   const user = await requireRole(['admin', 'receptionniste', 'comptable']);
   const { id } = await props.params;
   const supabase = await createClient();
 
+  let invoiceQuery = supabase
+    .from('invoices')
+    .select(`*, guest:guests(nom, prenom, email, telephone, adresse), lines:invoice_lines(*)`)
+    .eq('hotel_id', user.profile.hotel_id!);
+  invoiceQuery = isUuid(id) ? invoiceQuery.eq('id', id) : invoiceQuery.eq('numero', id);
+
   const [{ data: invoice }, { data: hotel }] = await Promise.all([
-    supabase
-      .from('invoices')
-      .select(`*, guest:guests(nom, prenom, email, telephone, adresse), lines:invoice_lines(*)`)
-      .eq('id', id)
-      .eq('hotel_id', user.profile.hotel_id!)
-      .single(),
+    invoiceQuery.maybeSingle(),
     supabase
       .from('hotels')
       .select('nom, adresse, ville, pays, telephone, email')
