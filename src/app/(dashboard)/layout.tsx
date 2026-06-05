@@ -8,16 +8,30 @@ import { getPlanStatus } from '@/lib/plan';
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
 
-  // Statut du plan / essai de l'hôtel courant
-  let planStatus = null;
+  // Récup plan — totalement défensif, ne doit JAMAIS faire planter le layout
+  let planStatus: any = null;
+  let planWarning: string | null = null;
+
   if (user.profile.hotel_id) {
-    const supabase = await createClient();
-    const { data: hotel } = await supabase
-      .from('hotels')
-      .select('plan, plan_expires_at, created_at')
-      .eq('id', user.profile.hotel_id)
-      .single();
-    if (hotel) planStatus = getPlanStatus(hotel as any);
+    try {
+      const supabase = await createClient();
+      const { data: hotel, error } = await supabase
+        .from('hotels')
+        .select('plan, plan_expires_at, created_at')
+        .eq('id', user.profile.hotel_id)
+        .maybeSingle();
+
+      if (error) {
+        // Migration plan/plan_expires_at probablement non exécutée
+        planWarning = `Migration manquante (hotels.plan / plan_expires_at). Détail : ${error.message}`;
+        console.error('[layout] fetch hotel plan failed:', error.message);
+      } else if (hotel) {
+        planStatus = getPlanStatus(hotel as any);
+      }
+    } catch (e: any) {
+      planWarning = `Erreur récup plan : ${e?.message ?? 'inconnue'}`;
+      console.error('[layout] plan fetch threw:', e);
+    }
   }
 
   return (
@@ -39,6 +53,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </header>
 
         <main className="flex-1 p-6 space-y-6">
+          {planWarning && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900">
+              ⚠ {planWarning}
+            </div>
+          )}
           {planStatus && <TrialBanner status={planStatus} />}
           {children}
         </main>

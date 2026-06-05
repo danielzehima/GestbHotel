@@ -134,8 +134,8 @@ async function fetchDashboardData(hotelId: string) {
     const iso = isoDay(d);
     const dayLabel = new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(d);
     const revenue = (paymentsWeek.data ?? [])
-      .filter((p: any) => p.encaisse_at.slice(0, 10) === iso)
-      .reduce((s, p: any) => s + Number(p.montant ?? 0), 0);
+      .filter((p: any) => typeof p?.encaisse_at === 'string' && p.encaisse_at.slice(0, 10) === iso)
+      .reduce((s, p: any) => s + Number(p?.montant ?? 0), 0);
     last7Days.push({ day: dayLabel, iso, revenue });
   }
   const maxRev = Math.max(...last7Days.map((d) => d.revenue), 1);
