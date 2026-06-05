@@ -122,24 +122,9 @@ export async function updatePlanPrice(
 }
 
 // ----- USERS -----
-
-export async function toggleUserActive(id: string, actif: boolean): Promise<ActionResult> {
-  await requireSuperadmin();
-  const supabase = createAdminClient();
-  const { error } = await supabase.from('profiles').update({ actif }).eq('id', id);
-  if (error) return { ok: false, error: error.message };
-  revalidatePath('/superadmin/users');
-  return { ok: true };
-}
-
-export async function changeUserRole(id: string, role: string): Promise<ActionResult> {
-  await requireSuperadmin();
-  const supabase = createAdminClient();
-  const { error } = await supabase.from('profiles').update({ role }).eq('id', id);
-  if (error) return { ok: false, error: error.message };
-  revalidatePath('/superadmin/users');
-  return { ok: true };
-}
+// Volontairement aucune action de modification : le super admin a un accès lecture seule.
+// La gestion des utilisateurs (rôle, activation, suppression) est confiée aux admins de chaque hôtel
+// via /staff dans leur dashboard.
 
 // ----- MESSAGES -----
 
