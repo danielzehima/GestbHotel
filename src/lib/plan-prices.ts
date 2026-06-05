@@ -15,19 +15,19 @@ export type PlanPrice = {
 // Fallback si la table plan_prices n'existe pas encore (migration non appliquée)
 const FALLBACK: PlanPrice[] = [
   {
-    plan: 'basique', nom: 'Basique', prix_mensuel: 10000,
+    plan: 'basique', nom: 'Basique', prix_mensuel: 15000,
     description: 'Petits hôtels et maisons d\'hôtes.',
     features: ['Jusqu\'à 10 chambres', 'Réservations', 'Facturation manuelle', '2 utilisateurs', 'Support email'],
     highlight: false, active: true, ordre: 1
   },
   {
-    plan: 'standard', nom: 'Standard', prix_mensuel: 15000,
+    plan: 'standard', nom: 'Standard', prix_mensuel: 35000,
     description: 'Hôtels moyens avec restaurant.',
     features: ['Jusqu\'à 40 chambres', 'Restaurant + QR', 'Mobile Money', 'Plannings', '10 utilisateurs'],
     highlight: true, active: true, ordre: 2
   },
   {
-    plan: 'premium', nom: 'Premium', prix_mensuel: 20000,
+    plan: 'premium', nom: 'Premium', prix_mensuel: 75000,
     description: 'Groupes hôteliers.',
     features: ['Chambres illimitées', 'Multi-établissements', 'Domaine perso', 'Support 24/7'],
     highlight: false, active: true, ordre: 3
