@@ -275,6 +275,67 @@ export async function sendNewHotelAdminNotification(data: { hotelNom: string; em
   });
 }
 
+// ----- 6. Reçu de paiement d'abonnement (GeniusPay) -----
+
+const PLAN_LABELS_EMAIL: Record<string, string> = {
+  basique: 'Basique',
+  standard: 'Standard',
+  premium: 'Premium'
+};
+
+export async function sendSubscriptionReceiptEmail(data: {
+  to: string;
+  hotelNom: string;
+  plan: 'basique' | 'standard' | 'premium';
+  months: number;
+  amount: number;
+  reference: string;
+  expiresAt: Date;
+}) {
+  const planNom = PLAN_LABELS_EMAIL[data.plan] ?? data.plan;
+  const montant = data.amount.toLocaleString('fr-FR');
+  const echeance = data.expiresAt.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  const html = layout('Reçu de paiement', `
+    <h2 style="margin:0 0 8px; font-size:22px; color:#0f172a;">Paiement confirmé ✅</h2>
+    <p style="margin:0 0 24px; color:#475569; line-height:1.6;">
+      Merci ! Le forfait <strong>${escape(planNom)}</strong> de <strong>${escape(data.hotelNom)}</strong> est désormais actif.
+    </p>
+
+    <table cellpadding="0" cellspacing="0" style="width:100%; background:#f8fafc; border-radius:8px; padding:16px;">
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Forfait</td>
+          <td style="padding:6px 0; font-size:15px; color:#0f172a; font-weight:600; text-align:right;">${escape(planNom)}</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Durée</td>
+          <td style="padding:6px 0; font-size:15px; color:#0f172a; text-align:right;">${data.months} mois</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Montant</td>
+          <td style="padding:6px 0; font-size:15px; color:#0f172a; font-weight:700; text-align:right;">${montant} FCFA</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Référence</td>
+          <td style="padding:6px 0; font-size:13px; color:#0f172a; font-family:'Courier New',monospace; text-align:right;">${escape(data.reference)}</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Valable jusqu'au</td>
+          <td style="padding:6px 0; font-size:15px; color:#0f172a; font-weight:600; text-align:right;">${escape(echeance)}</td></tr>
+    </table>
+
+    <p style="margin:24px 0;">
+      <a href="https://gestb-hotel.vercel.app/dashboard" style="display:inline-block; background:linear-gradient(135deg,#2563eb,#4f46e5); color:#ffffff; padding:14px 24px; border-radius:10px; text-decoration:none; font-weight:600; font-size:15px;">
+        Accéder à mon dashboard →
+      </a>
+    </p>
+    <p style="margin:8px 0 0; font-size:12px; color:#94a3b8;">
+      Ce reçu fait foi de votre paiement. Conservez-le.
+    </p>
+  `);
+
+  return sendEmail({
+    to: data.to,
+    subject: `Reçu GestHotel — Forfait ${planNom} activé`,
+    html
+  });
+}
+
 // ----- UTIL -----
 
 function escape(s: string): string {

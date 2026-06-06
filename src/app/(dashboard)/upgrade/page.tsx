@@ -6,6 +6,7 @@ import { getPlanStatus, PLAN_LABELS } from '@/lib/plan';
 import { getPlanPrices } from '@/lib/plan-prices';
 import { PageHeader } from '@/components/ui/page-header';
 import { formatDate } from '@/lib/utils/format';
+import { PayButton } from './pay-button';
 
 export const metadata = { title: 'Forfaits — GestHotel' };
 export const dynamic = 'force-dynamic';
@@ -117,7 +118,16 @@ export default async function UpgradePage() {
               <span className={`ml-1 text-sm ${p.highlight ? 'text-brand-100' : 'text-slate-500'}`}>FCFA / mois</span>
             </div>
 
-            <ContactCTA highlight={!!p.highlight} plan={p.nom} prix={p.prix} hotelNom={hotelNom} />
+            {/* Paiement automatisé GeniusPay */}
+            <PayButton plan={p.key as 'basique' | 'standard' | 'premium'} prixMensuel={p.prix} highlight={!!p.highlight} />
+
+            {/* Secours : paiement manuel par WhatsApp */}
+            <div className={`mt-3 pt-3 border-t ${p.highlight ? 'border-white/20' : 'border-slate-100'}`}>
+              <p className={`text-[11px] mb-2 text-center ${p.highlight ? 'text-brand-100' : 'text-slate-400'}`}>
+                Vous préférez payer manuellement ?
+              </p>
+              <ContactCTA highlight={!!p.highlight} plan={p.nom} prix={p.prix} hotelNom={hotelNom} />
+            </div>
 
             <ul className="mt-6 space-y-2 text-sm">
               {p.features.map((f) => (
@@ -204,13 +214,14 @@ function ContactCTA({
       href={waLink}
       target="_blank"
       rel="noopener noreferrer"
-      className={`block w-full text-center font-semibold py-3 rounded-xl transition ${
+      className={`flex items-center justify-center gap-2 w-full text-center font-medium py-2.5 rounded-xl border transition text-sm ${
         highlight
-          ? 'bg-white text-brand-700 hover:bg-brand-50 shadow-lg'
-          : 'bg-brand-600 text-white hover:bg-brand-700 shadow'
+          ? 'border-white/40 text-white hover:bg-white/10'
+          : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
       }`}
     >
-      Activer ce forfait
+      <MessageCircle className="w-4 h-4" />
+      Payer via WhatsApp
     </a>
   );
 }
