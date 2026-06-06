@@ -8,6 +8,11 @@ import { createClient } from '@/lib/supabase/server';
 import { getPlanStatus } from '@/lib/plan';
 import { logoutAction } from '@/app/(auth)/login/actions';
 
+// Force le rendu dynamique à chaque requête (sinon le compteur de jours
+// d'essai resterait figé dans le cache statique de Vercel/Next.js)
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const state = await getAuthState();
 
