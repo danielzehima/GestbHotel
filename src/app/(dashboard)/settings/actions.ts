@@ -45,6 +45,48 @@ export async function updateHotel(formData: FormData): Promise<ActionResult> {
   return { ok: true };
 }
 
+// ----- PAIEMENT DES RÉSERVATIONS (Mobile Money de l'hôtel) -----
+
+const paymentSchema = z.object({
+  mm_numero: z.string().max(40).optional().or(z.literal('')),
+  mm_nom: z.string().max(120).optional().or(z.literal('')),
+  acompte_pct: z.coerce.number().int().min(0).max(100).default(0)
+});
+
+export async function updatePaymentSettings(formData: FormData): Promise<ActionResult> {
+  const user = await requireRole(['admin']);
+  const parsed = paymentSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalide' };
+
+  const supabase = await createClient();
+
+  // Fusion dans parametres jsonb (préserve les autres clés éventuelles)
+  const { data: hotel } = await supabase
+    .from('hotels')
+    .select('parametres')
+    .eq('id', user.profile.hotel_id!)
+    .single();
+
+  const current = ((hotel as any)?.parametres ?? {}) as Record<string, any>;
+  const next = {
+    ...current,
+    paiement: {
+      numero: parsed.data.mm_numero || null,
+      nom: parsed.data.mm_nom || null,
+      acompte_pct: parsed.data.acompte_pct ?? 0
+    }
+  };
+
+  const { error } = await supabase
+    .from('hotels')
+    .update({ parametres: next })
+    .eq('id', user.profile.hotel_id!);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/settings');
+  return { ok: true };
+}
+
 // ----- PROFIL UTILISATEUR -----
 
 const profileSchema = z.object({

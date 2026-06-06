@@ -1,12 +1,17 @@
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import { AlertTriangle, LogOut } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { getAuthState } from '@/lib/auth';
 import { TrialBanner } from '@/components/trial-banner';
+import { PlanExpiredLock } from '@/components/plan-expired-lock';
 import { DashboardShell } from '@/components/dashboard-shell';
 import { createClient } from '@/lib/supabase/server';
 import { getPlanStatus } from '@/lib/plan';
 import { logoutAction } from '@/app/(auth)/login/actions';
+
+// Chemins encore accessibles quand le forfait est expiré (pour pouvoir payer)
+const ALLOWED_WHEN_EXPIRED = ['/upgrade'];
 
 // Force le rendu dynamique à chaque requête (sinon le compteur de jours
 // d'essai resterait figé dans le cache statique de Vercel/Next.js)
@@ -80,6 +85,13 @@ on conflict (id) do nothing;`}
     }
   }
 
+  // Verrouillage à l'expiration : on bloque les modules sauf les chemins autorisés (/upgrade).
+  const pathname = (await headers()).get('x-pathname') ?? '';
+  const onAllowedPath = ALLOWED_WHEN_EXPIRED.some(
+    (p) => pathname === p || pathname.startsWith(p + '/')
+  );
+  const locked = !!planStatus?.isExpired && !onAllowedPath;
+
   return (
     <DashboardShell
       role={user.profile.role}
@@ -95,7 +107,7 @@ on conflict (id) do nothing;`}
           <TrialBanner status={planStatus} />
         </div>
       )}
-      {children}
+      {locked ? <PlanExpiredLock status={planStatus} /> : children}
     </DashboardShell>
   );
 }

@@ -1,10 +1,11 @@
-import { Hotel, User, KeyRound } from 'lucide-react';
+import { Hotel, User, KeyRound, Wallet } from 'lucide-react';
 import { requireUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/ui/page-header';
 import { HotelForm } from './hotel-form';
 import { ProfileForm } from './profile-form';
 import { PasswordForm } from './password-form';
+import { PaymentSettingsForm } from './payment-settings-form';
 import { PlanSection } from './plan-section';
 
 export const metadata = { title: 'Paramètres — GestHotel' };
@@ -15,11 +16,16 @@ export default async function SettingsPage() {
 
   const { data: hotel } = await supabase
     .from('hotels')
-    .select('id, nom, adresse, ville, pays, telephone, email, devise, logo_url, slug')
+    .select('id, nom, adresse, ville, pays, telephone, email, devise, logo_url, slug, parametres')
     .eq('id', user.profile.hotel_id!)
     .single();
 
   const isAdmin = user.profile.role === 'admin';
+  const paiement = ((hotel as any)?.parametres?.paiement ?? {}) as {
+    numero?: string | null;
+    nom?: string | null;
+    acompte_pct?: number;
+  };
 
   return (
     <div>
@@ -33,6 +39,23 @@ export default async function SettingsPage() {
         {isAdmin && hotel && (
           <Section icon={Hotel} title="Informations de l'hôtel" description="Apparaît sur les factures et le menu public.">
             <HotelForm initial={hotel as any} />
+          </Section>
+        )}
+
+        {/* Paiement des réservations en ligne — admin uniquement */}
+        {isAdmin && hotel && (
+          <Section
+            icon={Wallet}
+            title="Paiement des réservations"
+            description="Votre numéro Mobile Money pour encaisser les acomptes des réservations en ligne."
+          >
+            <PaymentSettingsForm
+              initial={{
+                numero: paiement.numero ?? null,
+                nom: paiement.nom ?? null,
+                acompte_pct: paiement.acompte_pct ?? 0
+              }}
+            />
           </Section>
         )}
 

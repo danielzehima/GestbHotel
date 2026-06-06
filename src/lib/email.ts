@@ -336,6 +336,193 @@ export async function sendSubscriptionReceiptEmail(data: {
   });
 }
 
+// ----- 7. Relance avant expiration du forfait / essai -----
+
+export async function sendExpiryReminderEmail(data: {
+  to: string;
+  hotelNom: string;
+  prenom?: string;
+  isTrial: boolean;
+  daysLeft: number; // 7, 3 ou 1
+}) {
+  const urgent = data.daysLeft <= 1;
+  const jours = `${data.daysLeft} jour${data.daysLeft > 1 ? 's' : ''}`;
+  const titre = data.isTrial
+    ? `Votre essai gratuit se termine dans ${jours}`
+    : `Votre forfait expire dans ${jours}`;
+
+  const html = layout(titre, `
+    <h2 style="margin:0 0 8px; font-size:22px; color:${urgent ? '#dc2626' : '#0f172a'};">
+      ${urgent ? '⏰ Dernier rappel' : '⏳ Bientôt l\'échéance'}
+    </h2>
+    <p style="margin:0 0 16px; color:#475569; line-height:1.6;">
+      Bonjour${data.prenom ? ' ' + escape(data.prenom) : ''}, ${data.isTrial ? "l'essai gratuit" : 'le forfait'} de
+      <strong>${escape(data.hotelNom)}</strong> ${data.isTrial ? 'se termine' : 'expire'} dans <strong>${jours}</strong>.
+    </p>
+    <p style="margin:0 0 24px; color:#475569; line-height:1.6;">
+      Pour éviter toute interruption d'accès à votre hôtel (réservations, facturation, restaurant…),
+      ${data.isTrial ? 'activez' : 'renouvelez'} votre forfait dès maintenant. Paiement en quelques secondes par
+      Mobile Money ou carte.
+    </p>
+    <p style="margin:24px 0;">
+      <a href="https://gestb-hotel.vercel.app/upgrade" style="display:inline-block; background:linear-gradient(135deg,#2563eb,#4f46e5); color:#ffffff; padding:14px 24px; border-radius:10px; text-decoration:none; font-weight:600; font-size:15px;">
+        ${data.isTrial ? 'Choisir mon forfait' : 'Renouveler mon forfait'} →
+      </a>
+    </p>
+  `);
+
+  return sendEmail({
+    to: data.to,
+    subject: `${urgent ? '⏰ ' : ''}${titre} — GestHotel`,
+    html
+  });
+}
+
+// ----- 8. Forfait / essai expiré (jour J) -----
+
+export async function sendExpiredEmail(data: {
+  to: string;
+  hotelNom: string;
+  prenom?: string;
+  isTrial: boolean;
+}) {
+  const html = layout('Accès suspendu', `
+    <h2 style="margin:0 0 8px; font-size:22px; color:#dc2626;">Accès suspendu</h2>
+    <p style="margin:0 0 16px; color:#475569; line-height:1.6;">
+      Bonjour${data.prenom ? ' ' + escape(data.prenom) : ''}, ${data.isTrial ? "l'essai gratuit" : 'le forfait'} de
+      <strong>${escape(data.hotelNom)}</strong> ${data.isTrial ? 'est terminé' : 'a expiré'}.
+      L'accès au tableau de bord est temporairement suspendu.
+    </p>
+    <p style="margin:0 0 24px; color:#475569; line-height:1.6;">
+      <strong>Vos données sont conservées.</strong> Activez un forfait pour retrouver immédiatement l'accès complet.
+    </p>
+    <p style="margin:24px 0;">
+      <a href="https://gestb-hotel.vercel.app/upgrade" style="display:inline-block; background:linear-gradient(135deg,#2563eb,#4f46e5); color:#ffffff; padding:14px 24px; border-radius:10px; text-decoration:none; font-weight:600; font-size:15px;">
+        Réactiver mon accès →
+      </a>
+    </p>
+  `);
+
+  return sendEmail({
+    to: data.to,
+    subject: `Accès suspendu — réactivez ${data.hotelNom} sur GestHotel`,
+    html
+  });
+}
+
+// ----- 9. Réservation en ligne : confirmation au client -----
+
+type BookingEmailData = {
+  to: string;
+  reference: string;
+  hotelNom: string;
+  roomLabel: string;
+  arrivee: string;
+  depart: string;
+  nights: number;
+  prixTotal: number;
+  devise: string;
+  guestNom: string;
+  guestPrenom: string;
+  guestEmail: string;
+  guestTel: string;
+  paiement?: { numero?: string | null; nom?: string | null; acompte_pct?: number };
+};
+
+function fmtMoney(n: number, devise: string) {
+  try {
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: devise, maximumFractionDigits: 0 }).format(n);
+  } catch {
+    return `${n.toLocaleString('fr-FR')} ${devise}`;
+  }
+}
+function fmtDate(s: string) {
+  return new Date(s + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function bookingSummaryTable(d: BookingEmailData) {
+  return `
+    <table cellpadding="0" cellspacing="0" style="width:100%; background:#f8fafc; border-radius:8px; padding:16px;">
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Référence</td>
+          <td style="padding:6px 0; font-size:14px; color:#0f172a; font-family:'Courier New',monospace; text-align:right;">${escape(d.reference)}</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Chambre</td>
+          <td style="padding:6px 0; font-size:15px; color:#0f172a; font-weight:600; text-align:right;">${escape(d.roomLabel)}</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Arrivée</td>
+          <td style="padding:6px 0; font-size:14px; color:#0f172a; text-align:right;">${escape(fmtDate(d.arrivee))}</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Départ</td>
+          <td style="padding:6px 0; font-size:14px; color:#0f172a; text-align:right;">${escape(fmtDate(d.depart))}</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Nuits</td>
+          <td style="padding:6px 0; font-size:14px; color:#0f172a; text-align:right;">${d.nights}</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Total estimé</td>
+          <td style="padding:6px 0; font-size:16px; color:#0f172a; font-weight:700; text-align:right;">${fmtMoney(d.prixTotal, d.devise)}</td></tr>
+    </table>`;
+}
+
+function paymentInstructionsBlock(d: BookingEmailData): string {
+  const p = d.paiement;
+  if (!p || !p.numero) return '';
+  const pct = p.acompte_pct ?? 0;
+  const acompte = pct > 0 ? Math.round((d.prixTotal * pct) / 100) : 0;
+  const montantTxt = pct > 0
+    ? `un acompte de <strong>${fmtMoney(acompte, d.devise)}</strong> (${pct}%)`
+    : `le règlement`;
+
+  return `
+    <div style="margin-top:16px; padding:16px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px;">
+      <p style="margin:0 0 8px; font-size:14px; color:#065f46; font-weight:700;">💳 Pour garantir votre réservation</p>
+      <p style="margin:0 0 10px; font-size:14px; color:#065f46; line-height:1.6;">
+        Versez ${montantTxt} via <strong>Wave, Orange Money, MTN ou Moov</strong> au numéro ci-dessous,
+        puis envoyez la capture à l'hôtel.
+      </p>
+      <table cellpadding="0" cellspacing="0" style="width:100%; background:#ffffff; border-radius:6px; padding:12px;">
+        <tr><td style="padding:4px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Numéro</td>
+            <td style="padding:4px 0; font-size:16px; color:#0f172a; font-weight:700; text-align:right;">${escape(p.numero)}</td></tr>
+        ${p.nom ? `<tr><td style="padding:4px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Bénéficiaire</td>
+            <td style="padding:4px 0; font-size:14px; color:#0f172a; text-align:right;">${escape(p.nom)}</td></tr>` : ''}
+      </table>
+    </div>`;
+}
+
+export async function sendBookingGuestConfirmation(d: BookingEmailData) {
+  const html = layout('Demande de réservation reçue', `
+    <h2 style="margin:0 0 8px; font-size:22px; color:#0f172a;">Merci ${escape(d.guestPrenom)} 🎉</h2>
+    <p style="margin:0 0 20px; color:#475569; line-height:1.6;">
+      Votre demande de réservation chez <strong>${escape(d.hotelNom)}</strong> a bien été reçue.
+      Elle est <strong>en attente de confirmation</strong> par l'établissement, qui vous recontactera très vite.
+    </p>
+    ${bookingSummaryTable(d)}
+    ${paymentInstructionsBlock(d)}
+    <p style="margin:20px 0 0; font-size:13px; color:#64748b;">
+      Conservez votre référence <strong>${escape(d.reference)}</strong> pour tout échange avec l'hôtel.
+    </p>
+  `);
+  return sendEmail({ to: d.to, subject: `Votre réservation ${d.reference} — ${d.hotelNom}`, html });
+}
+
+// ----- 10. Réservation en ligne : notification à l'hôtel -----
+
+export async function sendBookingHotelNotification(d: BookingEmailData) {
+  const html = layout('Nouvelle réservation en ligne', `
+    <h2 style="margin:0 0 8px; font-size:22px; color:#0f172a;">🆕 Nouvelle réservation en ligne</h2>
+    <p style="margin:0 0 20px; color:#475569; line-height:1.6;">
+      Une demande vient d'arriver via votre site de réservation. Confirmez-la et assignez une chambre dans votre tableau de bord.
+    </p>
+    ${bookingSummaryTable(d)}
+    <table cellpadding="0" cellspacing="0" style="width:100%; background:#f1f5f9; border-radius:8px; padding:16px; margin-top:12px;">
+      <tr><td style="padding:4px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Client</td></tr>
+      <tr><td style="padding:0 0 8px; font-size:15px; color:#0f172a; font-weight:600;">${escape(d.guestPrenom)} ${escape(d.guestNom)}</td></tr>
+      <tr><td style="padding:0 0 4px;"><a href="mailto:${escape(d.guestEmail)}" style="color:#2563eb;">${escape(d.guestEmail)}</a></td></tr>
+      <tr><td><a href="tel:${escape(d.guestTel)}" style="color:#2563eb;">${escape(d.guestTel)}</a></td></tr>
+    </table>
+    <p style="margin:24px 0 0;">
+      <a href="https://gestb-hotel.vercel.app/reservations?filter=en_attente" style="display:inline-block; background:#2563eb; color:#ffffff; padding:12px 22px; border-radius:8px; text-decoration:none; font-weight:600; font-size:14px;">
+        Voir les demandes en attente →
+      </a>
+    </p>
+  `);
+  return sendEmail({ to: d.to, subject: `[Réservation] ${d.reference} — ${d.guestPrenom} ${d.guestNom}`, html });
+}
+
 // ----- UTIL -----
 
 function escape(s: string): string {

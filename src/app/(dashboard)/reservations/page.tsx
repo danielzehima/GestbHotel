@@ -11,13 +11,17 @@ import {
 } from '@/components/ui/reservation-status-badge';
 import { formatDate, formatMoney } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/cn';
+import { ShareBookingLink } from './share-booking-link';
 import type { ReservationStatus } from '@/types/database';
 
 export const metadata = { title: 'Réservations — GestHotel' };
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://gestb-hotel.vercel.app';
+
 const FILTERS: { value: ReservationStatus | 'all' | 'today'; label: string }[] = [
   { value: 'all', label: 'Toutes' },
   { value: 'today', label: "Aujourd'hui" },
+  { value: 'en_attente', label: RESERVATION_STATUS_LABELS.en_attente },
   { value: 'confirmee', label: RESERVATION_STATUS_LABELS.confirmee },
   { value: 'check_in', label: RESERVATION_STATUS_LABELS.check_in },
   { value: 'check_out', label: RESERVATION_STATUS_LABELS.check_out },
@@ -49,8 +53,18 @@ export default async function ReservationsPage(props: { searchParams: Promise<Se
 
   const { data: reservations } = await query;
 
+  // Slug de l'hôtel pour le lien de réservation public
+  const { data: hotel } = await supabase
+    .from('hotels')
+    .select('slug')
+    .eq('id', user.profile.hotel_id!)
+    .maybeSingle();
+  const bookingUrl = (hotel as any)?.slug ? `${APP_URL}/reserver/${(hotel as any).slug}` : null;
+
   return (
     <div>
+      {bookingUrl && <ShareBookingLink url={bookingUrl} />}
+
       <PageHeader
         title="Réservations"
         description="Gestion complète des séjours."

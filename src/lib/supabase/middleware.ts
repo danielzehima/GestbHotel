@@ -2,10 +2,15 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Database } from '@/types/database';
 
-const PUBLIC_PATHS = ['/', '/login', '/register', '/auth/callback', '/menu', '/contact', '/legal', '/superadmin'];
+const PUBLIC_PATHS = ['/', '/login', '/register', '/auth/callback', '/menu', '/reserver', '/contact', '/legal', '/superadmin'];
 
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  // Expose le chemin courant aux Server Components (utilisé par le layout pour
+  // verrouiller le dashboard à l'expiration tout en laissant passer /upgrade).
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', request.nextUrl.pathname);
+
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -23,7 +28,7 @@ export async function updateSession(request: NextRequest) {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
+        response = NextResponse.next({ request: { headers: requestHeaders } });
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options)
         );
