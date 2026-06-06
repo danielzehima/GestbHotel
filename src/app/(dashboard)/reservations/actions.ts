@@ -210,9 +210,23 @@ export async function createReservation(formData: FormData): Promise<ActionResul
   if (error || !created) return { ok: false, error: error?.message ?? 'Erreur création' };
 
   // Email de confirmation au client (best-effort)
-  loadGuestEmail(supabase, created.id, hotelId)
-    .then((p) => p && sendReservationConfirmedEmail(p, hotelId))
-    .catch((e) => console.error('[reservation] email confirmation:', e?.message));
+  (async () => {
+    try {
+      const p = await loadGuestEmail(supabase, created.id, hotelId);
+      if (p) {
+        const emailResult = await sendReservationConfirmedEmail(p, hotelId);
+        if (!emailResult.ok) {
+          console.warn('[createReservation] email failed:', emailResult.error);
+        } else {
+          console.info('[createReservation] confirmation email sent to', p.to);
+        }
+      } else {
+        console.warn('[createReservation] no guest email found');
+      }
+    } catch (e) {
+      console.error('[createReservation] error sending email:', (e as any)?.message);
+    }
+  })();
 
   revalidatePath('/reservations');
   revalidatePath('/dashboard');
@@ -235,9 +249,23 @@ export async function confirmReservation(id: string): Promise<ActionResult> {
     .eq('hotel_id', hotelId);
   if (error) return { ok: false, error: error.message };
 
-  loadGuestEmail(supabase, id, hotelId)
-    .then((p) => p && sendReservationConfirmedEmail(p, hotelId))
-    .catch((e) => console.error('[reservation] email confirmation:', e?.message));
+  (async () => {
+    try {
+      const p = await loadGuestEmail(supabase, id, hotelId);
+      if (p) {
+        const emailResult = await sendReservationConfirmedEmail(p, hotelId);
+        if (!emailResult.ok) {
+          console.warn('[confirmReservation] email failed:', emailResult.error);
+        } else {
+          console.info('[confirmReservation] confirmation email sent to', p.to);
+        }
+      } else {
+        console.warn('[confirmReservation] no guest email found');
+      }
+    } catch (e) {
+      console.error('[confirmReservation] error:', (e as any)?.message);
+    }
+  })();
 
   revalidatePath('/reservations');
   revalidatePath(`/reservations/${id}`);
@@ -349,9 +377,23 @@ export async function checkOut(id: string): Promise<ActionResult> {
 
   // Email de remerciement au client (best-effort)
   const hotelId = user.profile.hotel_id!;
-  loadGuestEmail(supabase, id, hotelId)
-    .then((p) => p && sendThankYouEmail(p, hotelId))
-    .catch((e) => console.error('[reservation] email remerciement:', e?.message));
+  (async () => {
+    try {
+      const p = await loadGuestEmail(supabase, id, hotelId);
+      if (p) {
+        const emailResult = await sendThankYouEmail(p, hotelId);
+        if (!emailResult.ok) {
+          console.warn('[checkOut] email failed:', emailResult.error);
+        } else {
+          console.info('[checkOut] thank you email sent to', p.to);
+        }
+      } else {
+        console.warn('[checkOut] no guest email found');
+      }
+    } catch (e) {
+      console.error('[checkOut] error sending email:', (e as any)?.message);
+    }
+  })();
 
   revalidatePath('/reservations');
   revalidatePath(`/reservations/${id}`);

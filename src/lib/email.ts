@@ -68,20 +68,32 @@ async function getHotelEmailSettings(hotelId: string): Promise<HotelEmailSetting
       .eq('id', hotelId)
       .single();
 
-    if (error || !hotel) {
+    if (error) {
+      console.warn(`[email] failed to fetch settings for hotel ${hotelId}:`, error.message);
+      return getDefaultEmailSettings();
+    }
+
+    if (!hotel) {
+      console.warn(`[email] hotel ${hotelId} not found, using defaults`);
       return getDefaultEmailSettings();
     }
 
     const customSettings = ((hotel as any)?.parametres?.email ?? {}) as Partial<HotelEmailSettings>;
 
     // Merge avec defaults
-    return {
+    const merged = {
       logo_url: customSettings.logo_url ?? null,
       primary_color: customSettings.primary_color ?? '#2563eb',
       hotel_name_header: customSettings.hotel_name_header ?? 'GestHotel',
       footer_signature: customSettings.footer_signature ?? 'La gestion hôtelière simplifiée',
       reply_to: customSettings.reply_to ?? null
     };
+
+    if (customSettings.hotel_name_header || customSettings.primary_color) {
+      console.info(`[email] loaded custom settings for hotel ${hotelId}`);
+    }
+
+    return merged;
   } catch (e) {
     console.error('[email] error fetching hotel settings:', (e as any)?.message);
     return getDefaultEmailSettings();
@@ -105,9 +117,14 @@ export async function sendEmail(args: SendArgs): Promise<EmailResult> {
       html: args.html,
       replyTo: args.replyTo
     });
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      console.error('[email] Resend error:', error.message, '| subject:', args.subject, '| to:', args.to);
+      return { ok: false, error: error.message };
+    }
+    console.info('[email] sent successfully ✓', args.subject, 'to', args.to);
     return { ok: true };
   } catch (e: any) {
+    console.error('[email] exception:', e?.message, '| subject:', args.subject);
     return { ok: false, error: e?.message ?? 'Erreur Resend' };
   }
 }
