@@ -4,7 +4,62 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth';
+import {
+  sendReservationConfirmedEmail,
+  sendThankYouEmail,
+  type GuestReservationEmail
+} from '@/lib/email';
 import type { ReservationStatus } from '@/types/database';
+
+/**
+ * Construit le payload d'email client pour une réservation.
+ * Renvoie null si le client n'a pas d'email (rien à envoyer).
+ */
+async function loadGuestEmail(
+  supabase: any,
+  id: string,
+  hotelId: string
+): Promise<GuestReservationEmail | null> {
+  const { data: r } = await supabase
+    .from('reservations')
+    .select(
+      `reference, date_arrivee, date_depart, prix_total, acompte,
+       guest:guests(prenom, nom, email),
+       room:rooms(numero, room_type:room_types(libelle)),
+       room_type:room_types(libelle)`
+    )
+    .eq('id', id)
+    .eq('hotel_id', hotelId)
+    .single();
+  if (!r || !r.guest?.email) return null;
+
+  const { data: hotel } = await supabase
+    .from('hotels')
+    .select('nom, devise, telephone')
+    .eq('id', hotelId)
+    .single();
+
+  const nights = Math.round(
+    (new Date(r.date_depart).getTime() - new Date(r.date_arrivee).getTime()) / 86400000
+  );
+  const roomLabel =
+    r.room?.room_type?.libelle || r.room_type?.libelle || r.room?.numero || 'Chambre';
+
+  return {
+    to: r.guest.email,
+    prenom: r.guest.prenom,
+    hotelNom: hotel?.nom ?? '',
+    reference: r.reference,
+    roomLabel,
+    arrivee: r.date_arrivee,
+    depart: r.date_depart,
+    nights,
+    prixTotal: Number(r.prix_total),
+    restant: Number(r.prix_total) - Number(r.acompte),
+    devise: hotel?.devise ?? 'XOF',
+    hotelTel: hotel?.telephone ?? null
+  };
+}
 
 export type ActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -154,9 +209,40 @@ export async function createReservation(formData: FormData): Promise<ActionResul
 
   if (error || !created) return { ok: false, error: error?.message ?? 'Erreur création' };
 
+  // Email de confirmation au client (best-effort)
+  loadGuestEmail(supabase, created.id, hotelId)
+    .then((p) => p && sendReservationConfirmedEmail(p))
+    .catch((e) => console.error('[reservation] email confirmation:', e?.message));
+
   revalidatePath('/reservations');
   revalidatePath('/dashboard');
   return { ok: true, data: { id: created.id } };
+}
+
+/**
+ * Confirme une réservation en attente (ex : demande venue du site web)
+ * et envoie l'email de confirmation au client.
+ */
+export async function confirmReservation(id: string): Promise<ActionResult> {
+  const user = await requireRole(['admin', 'receptionniste']);
+  const supabase = await createClient();
+  const hotelId = user.profile.hotel_id!;
+
+  const { error } = await supabase
+    .from('reservations')
+    .update({ statut: 'confirmee' as ReservationStatus })
+    .eq('id', id)
+    .eq('hotel_id', hotelId);
+  if (error) return { ok: false, error: error.message };
+
+  loadGuestEmail(supabase, id, hotelId)
+    .then((p) => p && sendReservationConfirmedEmail(p))
+    .catch((e) => console.error('[reservation] email confirmation:', e?.message));
+
+  revalidatePath('/reservations');
+  revalidatePath(`/reservations/${id}`);
+  revalidatePath('/dashboard');
+  return { ok: true };
 }
 
 export async function updateReservation(
@@ -260,6 +346,11 @@ export async function checkOut(id: string): Promise<ActionResult> {
   if (res.room_id) {
     await supabase.from('rooms').update({ statut: 'nettoyage' }).eq('id', res.room_id);
   }
+
+  // Email de remerciement au client (best-effort)
+  loadGuestEmail(supabase, id, user.profile.hotel_id!)
+    .then((p) => p && sendThankYouEmail(p))
+    .catch((e) => console.error('[reservation] email remerciement:', e?.message));
 
   revalidatePath('/reservations');
   revalidatePath(`/reservations/${id}`);

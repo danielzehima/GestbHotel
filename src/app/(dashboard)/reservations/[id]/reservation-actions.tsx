@@ -2,9 +2,9 @@
 
 import { useTransition } from 'react';
 import toast from 'react-hot-toast';
-import { LogIn, LogOut, XCircle, Loader2 } from 'lucide-react';
+import { LogIn, LogOut, XCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { checkIn, checkOut, cancelReservation } from '../actions';
+import { checkIn, checkOut, cancelReservation, confirmReservation } from '../actions';
 import type { ReservationStatus } from '@/types/database';
 
 export function ReservationActions({ id, status }: { id: string; status: ReservationStatus }) {
@@ -23,6 +23,16 @@ export function ReservationActions({ id, status }: { id: string; status: Reserva
   if (status === 'confirmee' || status === 'en_attente') {
     return (
       <div className="flex gap-2">
+        {status === 'en_attente' && (
+          <Button
+            variant="secondary"
+            onClick={() => run(() => confirmReservation(id), 'Réservation confirmée — email envoyé au client')}
+            disabled={pending}
+          >
+            {Spin ?? <CheckCircle2 className="w-4 h-4" />}
+            Confirmer
+          </Button>
+        )}
         <Button onClick={() => run(() => checkIn(id), 'Arrivée enregistrée')} disabled={pending}>
           {Spin ?? <LogIn className="w-4 h-4" />}
           Check-in

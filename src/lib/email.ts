@@ -523,6 +523,82 @@ export async function sendBookingHotelNotification(d: BookingEmailData) {
   return sendEmail({ to: d.to, subject: `[Réservation] ${d.reference} — ${d.guestPrenom} ${d.guestNom}`, html });
 }
 
+// ----- 11. Notifications client : confirmation / rappel / remerciement -----
+
+export type GuestReservationEmail = {
+  to: string;
+  prenom: string;
+  hotelNom: string;
+  reference: string;
+  roomLabel: string;
+  arrivee: string;
+  depart: string;
+  nights: number;
+  prixTotal: number;
+  restant?: number;
+  devise: string;
+  hotelTel?: string | null;
+};
+
+function guestResaTable(d: GuestReservationEmail) {
+  return `
+    <table cellpadding="0" cellspacing="0" style="width:100%; background:#f8fafc; border-radius:8px; padding:16px;">
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Référence</td>
+          <td style="padding:6px 0; font-size:14px; color:#0f172a; font-family:'Courier New',monospace; text-align:right;">${escape(d.reference)}</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Chambre</td>
+          <td style="padding:6px 0; font-size:15px; color:#0f172a; font-weight:600; text-align:right;">${escape(d.roomLabel)}</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Arrivée</td>
+          <td style="padding:6px 0; font-size:14px; color:#0f172a; text-align:right;">${escape(fmtDate(d.arrivee))}</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Départ</td>
+          <td style="padding:6px 0; font-size:14px; color:#0f172a; text-align:right;">${escape(fmtDate(d.depart))}</td></tr>
+      <tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Total séjour</td>
+          <td style="padding:6px 0; font-size:16px; color:#0f172a; font-weight:700; text-align:right;">${fmtMoney(d.prixTotal, d.devise)}</td></tr>
+      ${typeof d.restant === 'number' ? `<tr><td style="padding:6px 0; font-size:12px; color:#64748b; text-transform:uppercase; font-weight:600;">Restant dû</td>
+          <td style="padding:6px 0; font-size:14px; color:#0f172a; text-align:right;">${fmtMoney(d.restant, d.devise)}</td></tr>` : ''}
+    </table>`;
+}
+
+export async function sendReservationConfirmedEmail(d: GuestReservationEmail) {
+  const html = layout('Réservation confirmée', `
+    <h2 style="margin:0 0 8px; font-size:22px; color:#0f172a;">Votre réservation est confirmée ✅</h2>
+    <p style="margin:0 0 20px; color:#475569; line-height:1.6;">
+      Bonjour ${escape(d.prenom)}, nous avons le plaisir de confirmer votre séjour chez <strong>${escape(d.hotelNom)}</strong>.
+      Nous avons hâte de vous accueillir !
+    </p>
+    ${guestResaTable(d)}
+    ${d.hotelTel ? `<p style="margin:16px 0 0; font-size:13px; color:#64748b;">Une question ? Contactez-nous au <strong>${escape(d.hotelTel)}</strong>.</p>` : ''}
+  `);
+  return sendEmail({ to: d.to, subject: `Réservation confirmée ${d.reference} — ${d.hotelNom}`, html });
+}
+
+export async function sendArrivalReminderEmail(d: GuestReservationEmail) {
+  const html = layout('Votre arrivée approche', `
+    <h2 style="margin:0 0 8px; font-size:22px; color:#0f172a;">À très bientôt, ${escape(d.prenom)} 👋</h2>
+    <p style="margin:0 0 20px; color:#475569; line-height:1.6;">
+      Petit rappel : votre arrivée chez <strong>${escape(d.hotelNom)}</strong> est prévue <strong>demain</strong>.
+      Voici le récapitulatif de votre séjour.
+    </p>
+    ${guestResaTable(d)}
+    ${d.hotelTel ? `<p style="margin:16px 0 0; font-size:13px; color:#64748b;">Pour toute modification, appelez-nous au <strong>${escape(d.hotelTel)}</strong>.</p>` : ''}
+  `);
+  return sendEmail({ to: d.to, subject: `Rappel : votre arrivée demain — ${d.hotelNom}`, html });
+}
+
+export async function sendThankYouEmail(d: GuestReservationEmail) {
+  const html = layout('Merci de votre visite', `
+    <h2 style="margin:0 0 8px; font-size:22px; color:#0f172a;">Merci ${escape(d.prenom)} 🙏</h2>
+    <p style="margin:0 0 16px; color:#475569; line-height:1.6;">
+      Nous espérons que votre séjour chez <strong>${escape(d.hotelNom)}</strong> s'est très bien passé.
+      Ce fut un plaisir de vous accueillir.
+    </p>
+    <p style="margin:0 0 16px; color:#475569; line-height:1.6;">
+      Votre avis compte énormément. N'hésitez pas à nous faire part de vos impressions${d.hotelTel ? ` au <strong>${escape(d.hotelTel)}</strong>` : ''} —
+      et au plaisir de vous revoir très vite !
+    </p>
+  `);
+  return sendEmail({ to: d.to, subject: `Merci de votre visite — ${d.hotelNom}`, html });
+}
+
 // ----- UTIL -----
 
 function escape(s: string): string {

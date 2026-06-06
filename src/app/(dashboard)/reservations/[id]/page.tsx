@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ReservationStatusBadge } from '@/components/ui/reservation-status-badge';
 import { formatDate, formatDateTime, formatMoney } from '@/lib/utils/format';
 import { ReservationActions } from './reservation-actions';
+import { GuestWhatsapp } from './guest-whatsapp';
 
 export const metadata = { title: 'Détail réservation — GestHotel' };
 
@@ -31,6 +32,13 @@ export default async function ReservationDetailPage(props: { params: Promise<{ i
 
   if (!r) notFound();
   const res = r as any;
+
+  const { data: hotelRow } = await supabase
+    .from('hotels')
+    .select('nom')
+    .eq('id', user.profile.hotel_id!)
+    .maybeSingle();
+  const hotelNom = (hotelRow as any)?.nom ?? '';
   const restant = Number(res.prix_total) - Number(res.acompte);
   const nights = Math.round(
     (new Date(res.date_depart).getTime() - new Date(res.date_arrivee).getTime()) / 86400000
@@ -97,6 +105,17 @@ export default async function ReservationDetailPage(props: { params: Promise<{ i
               </div>
             )}
           </dl>
+
+          {res.guest?.telephone && (
+            <GuestWhatsapp
+              telephone={res.guest.telephone}
+              prenom={res.guest.prenom}
+              hotelNom={hotelNom}
+              reference={res.reference}
+              arrivee={res.date_arrivee}
+              depart={res.date_depart}
+            />
+          )}
         </div>
 
         {/* Tarifs */}
