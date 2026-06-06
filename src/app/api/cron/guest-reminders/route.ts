@@ -77,7 +77,7 @@ export async function GET(req: Request) {
       restant: Number(r.prix_total) - Number(r.acompte),
       devise: hotel.devise ?? 'XOF',
       hotelTel: hotel.telephone ?? null
-    });
+    }, r.hotel_id);
     sent++;
   }
 

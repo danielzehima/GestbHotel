@@ -211,7 +211,7 @@ export async function createReservation(formData: FormData): Promise<ActionResul
 
   // Email de confirmation au client (best-effort)
   loadGuestEmail(supabase, created.id, hotelId)
-    .then((p) => p && sendReservationConfirmedEmail(p))
+    .then((p) => p && sendReservationConfirmedEmail(p, hotelId))
     .catch((e) => console.error('[reservation] email confirmation:', e?.message));
 
   revalidatePath('/reservations');
@@ -236,7 +236,7 @@ export async function confirmReservation(id: string): Promise<ActionResult> {
   if (error) return { ok: false, error: error.message };
 
   loadGuestEmail(supabase, id, hotelId)
-    .then((p) => p && sendReservationConfirmedEmail(p))
+    .then((p) => p && sendReservationConfirmedEmail(p, hotelId))
     .catch((e) => console.error('[reservation] email confirmation:', e?.message));
 
   revalidatePath('/reservations');
@@ -348,8 +348,9 @@ export async function checkOut(id: string): Promise<ActionResult> {
   }
 
   // Email de remerciement au client (best-effort)
-  loadGuestEmail(supabase, id, user.profile.hotel_id!)
-    .then((p) => p && sendThankYouEmail(p))
+  const hotelId = user.profile.hotel_id!;
+  loadGuestEmail(supabase, id, hotelId)
+    .then((p) => p && sendThankYouEmail(p, hotelId))
     .catch((e) => console.error('[reservation] email remerciement:', e?.message));
 
   revalidatePath('/reservations');

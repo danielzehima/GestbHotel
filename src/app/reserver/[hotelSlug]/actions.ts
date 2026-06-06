@@ -119,7 +119,7 @@ export async function createPublicBooking(formData: FormData): Promise<BookingRe
     guestEmail: d.email,
     guestTel: d.telephone
   };
-  sendBookingGuestConfirmation({ to: d.email, ...common, paiement: hotel.paiement }).catch((e) =>
+  sendBookingGuestConfirmation({ to: d.email, ...common, paiement: hotel.paiement }, hotel.id).catch((e) =>
     console.error('[booking] guest email:', e?.message)
   );
   if (hotel.email) {

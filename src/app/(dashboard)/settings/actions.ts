@@ -45,6 +45,52 @@ export async function updateHotel(formData: FormData): Promise<ActionResult> {
   return { ok: true };
 }
 
+// ----- EMAIL CUSTOMIZATION (Templates personnalisés par hôtel) -----
+
+const emailSettingsSchema = z.object({
+  email_logo_url: z.string().url().optional().or(z.literal('')),
+  email_primary_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional().or(z.literal('')),
+  email_hotel_name: z.string().max(100).optional().or(z.literal('')),
+  email_footer: z.string().max(200).optional().or(z.literal('')),
+  email_reply_to: z.string().email().optional().or(z.literal(''))
+});
+
+export async function updateEmailSettings(formData: FormData): Promise<ActionResult> {
+  const user = await requireRole(['admin']);
+  const parsed = emailSettingsSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalide' };
+
+  const supabase = await createClient();
+
+  // Fusion dans parametres jsonb (préserve paiement et autres clés)
+  const { data: hotel } = await supabase
+    .from('hotels')
+    .select('parametres')
+    .eq('id', user.profile.hotel_id!)
+    .single();
+
+  const current = ((hotel as any)?.parametres ?? {}) as Record<string, any>;
+  const next = {
+    ...current,
+    email: {
+      logo_url: parsed.data.email_logo_url || null,
+      primary_color: parsed.data.email_primary_color || null,
+      hotel_name_header: parsed.data.email_hotel_name || null,
+      footer_signature: parsed.data.email_footer || null,
+      reply_to: parsed.data.email_reply_to || null
+    }
+  };
+
+  const { error } = await supabase
+    .from('hotels')
+    .update({ parametres: next })
+    .eq('id', user.profile.hotel_id!);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/settings');
+  return { ok: true };
+}
+
 // ----- PAIEMENT DES RÉSERVATIONS (Mobile Money de l'hôtel) -----
 
 const paymentSchema = z.object({

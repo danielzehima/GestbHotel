@@ -1,4 +1,4 @@
-import { Hotel, User, KeyRound, Wallet } from 'lucide-react';
+import { Hotel, User, KeyRound, Wallet, Mail } from 'lucide-react';
 import { requireUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/ui/page-header';
@@ -6,6 +6,7 @@ import { HotelForm } from './hotel-form';
 import { ProfileForm } from './profile-form';
 import { PasswordForm } from './password-form';
 import { PaymentSettingsForm } from './payment-settings-form';
+import { EmailSettingsForm } from './email-settings-form';
 import { PlanSection } from './plan-section';
 
 export const metadata = { title: 'Paramètres — GestHotel' };
@@ -25,6 +26,13 @@ export default async function SettingsPage() {
     numero?: string | null;
     nom?: string | null;
     acompte_pct?: number;
+  };
+  const emailSettings = ((hotel as any)?.parametres?.email ?? {}) as {
+    logo_url?: string | null;
+    primary_color?: string | null;
+    hotel_name_header?: string | null;
+    footer_signature?: string | null;
+    reply_to?: string | null;
   };
 
   return (
@@ -56,6 +64,17 @@ export default async function SettingsPage() {
                 acompte_pct: paiement.acompte_pct ?? 0
               }}
             />
+          </Section>
+        )}
+
+        {/* Modèles d'emails personnalisés — admin uniquement */}
+        {isAdmin && hotel && (
+          <Section
+            icon={Mail}
+            title="Modèles d'emails"
+            description="Personnalisez les emails envoyés à vos clients (logo, couleur, signature)."
+          >
+            <EmailSettingsForm initial={emailSettings} />
           </Section>
         )}
 

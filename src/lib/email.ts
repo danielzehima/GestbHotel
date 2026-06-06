@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { createAdminClient } from './supabase/admin';
 
 /**
  * Helper d'envoi d'emails via Resend.
@@ -21,6 +22,14 @@ type SendArgs = {
 
 export type EmailResult = { ok: true } | { ok: false; error: string };
 
+export type HotelEmailSettings = {
+  logo_url?: string | null;
+  primary_color?: string | null;
+  hotel_name_header?: string | null;
+  footer_signature?: string | null;
+  reply_to?: string | null;
+};
+
 const FROM = process.env.RESEND_FROM ?? 'GestHotel <onboarding@resend.dev>';
 const ADMIN_EMAIL = process.env.RESEND_ADMIN_EMAIL ?? 'danielzehima@gmail.com';
 
@@ -28,6 +37,55 @@ function getClient(): Resend | null {
   const key = process.env.RESEND_API_KEY;
   if (!key) return null;
   return new Resend(key);
+}
+
+// ============================================================================
+// EMAIL CUSTOMIZATION HELPERS
+// ============================================================================
+
+/**
+ * Retourne les settings par défaut (GestHotel)
+ */
+function getDefaultEmailSettings(): HotelEmailSettings {
+  return {
+    logo_url: null,
+    primary_color: '#2563eb',
+    hotel_name_header: 'GestHotel',
+    footer_signature: 'La gestion hôtelière simplifiée',
+    reply_to: null
+  };
+}
+
+/**
+ * Récupère les settings email customisés d'un hôtel, avec fallback aux defaults
+ */
+async function getHotelEmailSettings(hotelId: string): Promise<HotelEmailSettings> {
+  try {
+    const supabase = createAdminClient();
+    const { data: hotel, error } = await supabase
+      .from('hotels')
+      .select('parametres')
+      .eq('id', hotelId)
+      .single();
+
+    if (error || !hotel) {
+      return getDefaultEmailSettings();
+    }
+
+    const customSettings = ((hotel as any)?.parametres?.email ?? {}) as Partial<HotelEmailSettings>;
+
+    // Merge avec defaults
+    return {
+      logo_url: customSettings.logo_url ?? null,
+      primary_color: customSettings.primary_color ?? '#2563eb',
+      hotel_name_header: customSettings.hotel_name_header ?? 'GestHotel',
+      footer_signature: customSettings.footer_signature ?? 'La gestion hôtelière simplifiée',
+      reply_to: customSettings.reply_to ?? null
+    };
+  } catch (e) {
+    console.error('[email] error fetching hotel settings:', (e as any)?.message);
+    return getDefaultEmailSettings();
+  }
 }
 
 export async function sendEmail(args: SendArgs): Promise<EmailResult> {
@@ -58,7 +116,20 @@ export async function sendEmail(args: SendArgs): Promise<EmailResult> {
 // TEMPLATES HTML
 // ============================================================================
 
-const layout = (title: string, body: string) => `
+/**
+ * Layout avec support pour customization par hôtel
+ */
+function layoutWithCustomization(
+  title: string,
+  body: string,
+  settings: HotelEmailSettings = getDefaultEmailSettings()
+) {
+  const gradientColor = settings.primary_color || '#2563eb';
+  const gradientDark = adjustColor(gradientColor, -20);
+  const hotelName = settings.hotel_name_header || 'GestHotel';
+  const signature = settings.footer_signature || 'La gestion hôtelière simplifiée';
+
+  return `
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -72,9 +143,10 @@ const layout = (title: string, body: string) => `
       <td align="center" style="padding:40px 16px;">
         <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:560px; width:100%; background:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
           <tr>
-            <td style="background:linear-gradient(135deg,#2563eb,#4f46e5); padding:24px 32px; color:#ffffff;">
+            <td style="background:linear-gradient(135deg,${gradientColor},${gradientDark}); padding:24px 32px; color:#ffffff;">
+              ${settings.logo_url ? `<div style="margin:0 0 12px;"><img src="${escape(settings.logo_url)}" alt="Logo" style="max-height:40px; max-width:200px;"></div>` : ''}
               <div style="font-size:20px; font-weight:700; letter-spacing:-0.02em;">
-                🏨 GestHotel
+                🏨 ${escape(hotelName)}
               </div>
             </td>
           </tr>
@@ -85,8 +157,8 @@ const layout = (title: string, body: string) => `
           </tr>
           <tr>
             <td style="padding:20px 32px; background:#f8fafc; border-top:1px solid #e2e8f0; font-size:12px; color:#64748b; text-align:center;">
-              GestHotel — La gestion hôtelière simplifiée<br>
-              <a href="https://gestb-hotel.vercel.app" style="color:#2563eb; text-decoration:none;">gestb-hotel.vercel.app</a>
+              ${escape(signature)}<br>
+              <a href="https://gestb-hotel.vercel.app" style="color:${gradientColor}; text-decoration:none;">gestb-hotel.vercel.app</a>
             </td>
           </tr>
         </table>
@@ -95,7 +167,29 @@ const layout = (title: string, body: string) => `
   </table>
 </body>
 </html>
-`;
+  `;
+}
+
+/**
+ * Layout classique (pour emails système : welcome, invite, password reset)
+ */
+const layout = (title: string, body: string) => layoutWithCustomization(title, body, getDefaultEmailSettings());
+
+/**
+ * Utilitaire : ajuste la teinte d'une couleur hex
+ */
+function adjustColor(hex: string, percent: number): string {
+  try {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const r = Math.max(0, Math.min(255, (num >> 16) + amt));
+    const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00ff) + amt));
+    const b = Math.max(0, Math.min(255, (num & 0x0000ff) + amt));
+    return `#${(0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1)}`;
+  } catch {
+    return '#4f46e5';
+  }
+}
 
 // ----- 1. Notification admin : nouveau message de contact -----
 
@@ -483,8 +577,9 @@ function paymentInstructionsBlock(d: BookingEmailData): string {
     </div>`;
 }
 
-export async function sendBookingGuestConfirmation(d: BookingEmailData) {
-  const html = layout('Demande de réservation reçue', `
+export async function sendBookingGuestConfirmation(d: BookingEmailData, hotelId?: string) {
+  const settings = hotelId ? await getHotelEmailSettings(hotelId) : getDefaultEmailSettings();
+  const html = layoutWithCustomization('Demande de réservation reçue', `
     <h2 style="margin:0 0 8px; font-size:22px; color:#0f172a;">Merci ${escape(d.guestPrenom)} 🎉</h2>
     <p style="margin:0 0 20px; color:#475569; line-height:1.6;">
       Votre demande de réservation chez <strong>${escape(d.hotelNom)}</strong> a bien été reçue.
@@ -495,8 +590,13 @@ export async function sendBookingGuestConfirmation(d: BookingEmailData) {
     <p style="margin:20px 0 0; font-size:13px; color:#64748b;">
       Conservez votre référence <strong>${escape(d.reference)}</strong> pour tout échange avec l'hôtel.
     </p>
-  `);
-  return sendEmail({ to: d.to, subject: `Votre réservation ${d.reference} — ${d.hotelNom}`, html });
+  `, settings);
+  return sendEmail({
+    to: d.to,
+    subject: `Votre réservation ${d.reference} — ${d.hotelNom}`,
+    html,
+    replyTo: settings.reply_to || undefined
+  });
 }
 
 // ----- 10. Réservation en ligne : notification à l'hôtel -----
@@ -558,8 +658,9 @@ function guestResaTable(d: GuestReservationEmail) {
     </table>`;
 }
 
-export async function sendReservationConfirmedEmail(d: GuestReservationEmail) {
-  const html = layout('Réservation confirmée', `
+export async function sendReservationConfirmedEmail(d: GuestReservationEmail, hotelId?: string) {
+  const settings = hotelId ? await getHotelEmailSettings(hotelId) : getDefaultEmailSettings();
+  const html = layoutWithCustomization('Réservation confirmée', `
     <h2 style="margin:0 0 8px; font-size:22px; color:#0f172a;">Votre réservation est confirmée ✅</h2>
     <p style="margin:0 0 20px; color:#475569; line-height:1.6;">
       Bonjour ${escape(d.prenom)}, nous avons le plaisir de confirmer votre séjour chez <strong>${escape(d.hotelNom)}</strong>.
@@ -567,12 +668,18 @@ export async function sendReservationConfirmedEmail(d: GuestReservationEmail) {
     </p>
     ${guestResaTable(d)}
     ${d.hotelTel ? `<p style="margin:16px 0 0; font-size:13px; color:#64748b;">Une question ? Contactez-nous au <strong>${escape(d.hotelTel)}</strong>.</p>` : ''}
-  `);
-  return sendEmail({ to: d.to, subject: `Réservation confirmée ${d.reference} — ${d.hotelNom}`, html });
+  `, settings);
+  return sendEmail({
+    to: d.to,
+    subject: `Réservation confirmée ${d.reference} — ${d.hotelNom}`,
+    html,
+    replyTo: settings.reply_to || undefined
+  });
 }
 
-export async function sendArrivalReminderEmail(d: GuestReservationEmail) {
-  const html = layout('Votre arrivée approche', `
+export async function sendArrivalReminderEmail(d: GuestReservationEmail, hotelId?: string) {
+  const settings = hotelId ? await getHotelEmailSettings(hotelId) : getDefaultEmailSettings();
+  const html = layoutWithCustomization('Votre arrivée approche', `
     <h2 style="margin:0 0 8px; font-size:22px; color:#0f172a;">À très bientôt, ${escape(d.prenom)} 👋</h2>
     <p style="margin:0 0 20px; color:#475569; line-height:1.6;">
       Petit rappel : votre arrivée chez <strong>${escape(d.hotelNom)}</strong> est prévue <strong>demain</strong>.
@@ -580,12 +687,18 @@ export async function sendArrivalReminderEmail(d: GuestReservationEmail) {
     </p>
     ${guestResaTable(d)}
     ${d.hotelTel ? `<p style="margin:16px 0 0; font-size:13px; color:#64748b;">Pour toute modification, appelez-nous au <strong>${escape(d.hotelTel)}</strong>.</p>` : ''}
-  `);
-  return sendEmail({ to: d.to, subject: `Rappel : votre arrivée demain — ${d.hotelNom}`, html });
+  `, settings);
+  return sendEmail({
+    to: d.to,
+    subject: `Rappel : votre arrivée demain — ${d.hotelNom}`,
+    html,
+    replyTo: settings.reply_to || undefined
+  });
 }
 
-export async function sendThankYouEmail(d: GuestReservationEmail) {
-  const html = layout('Merci de votre visite', `
+export async function sendThankYouEmail(d: GuestReservationEmail, hotelId?: string) {
+  const settings = hotelId ? await getHotelEmailSettings(hotelId) : getDefaultEmailSettings();
+  const html = layoutWithCustomization('Merci de votre visite', `
     <h2 style="margin:0 0 8px; font-size:22px; color:#0f172a;">Merci ${escape(d.prenom)} 🙏</h2>
     <p style="margin:0 0 16px; color:#475569; line-height:1.6;">
       Nous espérons que votre séjour chez <strong>${escape(d.hotelNom)}</strong> s'est très bien passé.
@@ -595,8 +708,13 @@ export async function sendThankYouEmail(d: GuestReservationEmail) {
       Votre avis compte énormément. N'hésitez pas à nous faire part de vos impressions${d.hotelTel ? ` au <strong>${escape(d.hotelTel)}</strong>` : ''} —
       et au plaisir de vous revoir très vite !
     </p>
-  `);
-  return sendEmail({ to: d.to, subject: `Merci de votre visite — ${d.hotelNom}`, html });
+  `, settings);
+  return sendEmail({
+    to: d.to,
+    subject: `Merci de votre visite — ${d.hotelNom}`,
+    html,
+    replyTo: settings.reply_to || undefined
+  });
 }
 
 // ----- UTIL -----
