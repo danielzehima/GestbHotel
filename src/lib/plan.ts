@@ -37,6 +37,16 @@ export type PlanStatus = {
   progressPct: number;
 };
 
+/**
+ * Met une date à minuit (00:00:00.000) — utilisé pour comparer des jours
+ * calendaires sans tenir compte des heures.
+ */
+function startOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
 export function getPlanStatus(hotel: {
   plan?: Plan | null;
   plan_expires_at?: string | null;
@@ -49,18 +59,21 @@ export function getPlanStatus(hotel: {
   let totalDays = 30;
 
   if (plan === 'trial') {
-    const start = new Date(hotel.created_at);
+    // Normalisation : on raisonne en JOURS CALENDAIRES, pas en heures.
+    // Hôtel créé à 22h55 le 5 juin → essai expire au matin du 26 juin (à 00h00).
+    const start = startOfDay(new Date(hotel.created_at));
     expiresAt = new Date(start.getTime() + TRIAL_DAYS * 86400000);
     totalDays = TRIAL_DAYS;
   } else if (hotel.plan_expires_at) {
-    expiresAt = new Date(hotel.plan_expires_at);
+    expiresAt = startOfDay(new Date(hotel.plan_expires_at));
   }
 
-  const now = Date.now();
+  // On compare aussi "now" en début de jour pour rester cohérent
+  const todayMidnight = startOfDay(new Date()).getTime();
   const daysLeft = expiresAt
-    ? Math.max(0, Math.ceil((expiresAt.getTime() - now) / 86400000))
+    ? Math.max(0, Math.round((expiresAt.getTime() - todayMidnight) / 86400000))
     : Infinity;
-  const isExpired = expiresAt ? expiresAt.getTime() < now : false;
+  const isExpired = expiresAt ? expiresAt.getTime() <= todayMidnight : false;
   const isExpiringSoon = !isExpired && daysLeft <= 7;
   const daysUsed = Math.max(0, totalDays - daysLeft);
   const progressPct = totalDays > 0 ? Math.min(100, (daysUsed / totalDays) * 100) : 0;
