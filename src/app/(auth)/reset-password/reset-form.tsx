@@ -1,38 +1,87 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFormStatus } from 'react-dom';
-import { Loader2, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
-import { updatePassword, type ResetState } from './actions';
+import { Loader2, Lock, Eye, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 disabled:opacity-60 shadow-sm transition"
-    >
-      {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-      Réinitialiser le mot de passe
-    </button>
-  );
-}
+type Phase = 'checking' | 'ready' | 'invalid' | 'done';
 
 export function ResetForm() {
-  const [state, formAction] = useActionState<ResetState, FormData>(updatePassword, null);
+  const supabaseRef = useRef(createClient());
+  const [phase, setPhase] = useState<Phase>('checking');
   const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Détecte la session de récupération établie par le lien email
+  // (le client navigateur consomme automatiquement ?code= ou #access_token=).
   useEffect(() => {
-    if (state?.ok) {
-      const t = setTimeout(() => router.push('/login'), 2500);
-      return () => clearTimeout(t);
-    }
-  }, [state, router]);
+    const supabase = supabaseRef.current;
+    let done = false;
 
-  if (state?.ok) {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) { done = true; setPhase('ready'); }
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) { done = true; setPhase('ready'); }
+    });
+
+    // Filet de sécurité si rien ne s'est établi
+    const t = setTimeout(async () => {
+      if (done) return;
+      const { data } = await supabase.auth.getSession();
+      setPhase(data.session ? 'ready' : 'invalid');
+    }, 3000);
+
+    return () => { sub.subscription.unsubscribe(); clearTimeout(t); };
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    const password = String(fd.get('password') ?? '');
+    const confirm = String(fd.get('confirm') ?? '');
+    if (password.length < 8) { setError('Le mot de passe doit contenir au moins 8 caractères.'); return; }
+    if (password !== confirm) { setError('Les mots de passe ne correspondent pas.'); return; }
+
+    setLoading(true);
+    const { error } = await supabaseRef.current.auth.updateUser({ password });
+    setLoading(false);
+    if (error) { setError(error.message); return; }
+
+    setPhase('done');
+    setTimeout(() => router.push('/login'), 2500);
+  }
+
+  if (phase === 'checking') {
+    return (
+      <div className="text-center py-6">
+        <Loader2 className="w-8 h-8 text-brand-500 mx-auto animate-spin" />
+        <p className="text-sm text-slate-500 mt-3">Vérification du lien…</p>
+      </div>
+    );
+  }
+
+  if (phase === 'invalid') {
+    return (
+      <div className="text-center">
+        <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto" />
+        <h1 className="mt-3 text-xl font-bold text-slate-900">Lien invalide ou expiré</h1>
+        <p className="text-sm text-slate-600 mt-2">
+          Ouvrez le lien depuis le même appareil/navigateur que la demande, ou refaites une demande.
+        </p>
+        <a href="/forgot-password" className="mt-5 inline-block bg-brand-600 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-brand-700 transition">
+          Nouvelle demande
+        </a>
+      </div>
+    );
+  }
+
+  if (phase === 'done') {
     return (
       <div className="text-center py-2">
         <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
@@ -42,19 +91,29 @@ export function ResetForm() {
     );
   }
 
+  // phase === 'ready'
   return (
-    <form action={formAction} className="space-y-4">
-      <PasswordField name="password" label="Nouveau mot de passe" show={show} setShow={setShow} />
-      <PasswordField name="confirm" label="Confirmer le mot de passe" show={show} setShow={setShow} />
+    <>
+      <h1 className="text-2xl font-bold text-slate-900">Nouveau mot de passe</h1>
+      <p className="text-slate-500 mt-1 mb-6">Choisissez un mot de passe sécurisé (8 caractères min.).</p>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <PasswordField name="password" label="Nouveau mot de passe" show={show} setShow={setShow} />
+        <PasswordField name="confirm" label="Confirmer le mot de passe" show={show} setShow={setShow} />
 
-      {state && !state.ok && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-          {state.error}
-        </p>
-      )}
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+        )}
 
-      <SubmitButton />
-    </form>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 disabled:opacity-60 shadow-sm transition"
+        >
+          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+          Réinitialiser le mot de passe
+        </button>
+      </form>
+    </>
   );
 }
 
