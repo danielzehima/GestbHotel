@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import {
   BedDouble, CalendarCheck, Receipt, Sparkles, TrendingUp, Users,
-  UtensilsCrossed, ArrowRight, LogIn, LogOut, Clock, AlertTriangle
+  UtensilsCrossed, ArrowRight, LogIn, LogOut, Clock, AlertTriangle,
+  Plus, BarChart3, BellRing, CheckCircle2
 } from 'lucide-react';
+import type { UserRole } from '@/types/database';
 import { createClient } from '@/lib/supabase/server';
 import { requireUser } from '@/lib/auth';
 import { PageHeader } from '@/components/ui/page-header';
@@ -42,7 +44,7 @@ async function fetchDashboardData(hotelId: string) {
   const monthStart = isoDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const todayStart = startOfDay(new Date()).toISOString();
 
-  const [rooms, arrivals, departures, paymentsToday, paymentsMonth, paymentsWeek, tasksOpen, ordersToday, upcomingReservations, recentActivity, inHouse] = await Promise.all([
+  const [rooms, arrivals, departures, paymentsToday, paymentsMonth, paymentsWeek, tasksOpen, ordersToday, upcomingReservations, recentActivity, inHouse, pendingResas] = await Promise.all([
     supabase.from('rooms').select('id, statut, room_type:room_types(prix_nuit)').eq('hotel_id', hotelId),
     supabase.from('reservations').select('id, reference, date_arrivee, statut, guest:guests(nom, prenom), room:rooms(numero)').eq('hotel_id', hotelId).eq('date_arrivee', today).in('statut', ['confirmee', 'check_in']),
     supabase.from('reservations').select('id, reference, date_depart, statut, guest:guests(nom, prenom), room:rooms(numero)').eq('hotel_id', hotelId).eq('date_depart', today).in('statut', ['check_in', 'check_out']),
@@ -53,7 +55,8 @@ async function fetchDashboardData(hotelId: string) {
     supabase.from('orders').select('id, total, statut').eq('hotel_id', hotelId).gte('created_at', todayStart),
     supabase.from('reservations').select('id, reference, date_arrivee, prix_total, guest:guests(nom, prenom), room:rooms(numero)').eq('hotel_id', hotelId).gte('date_arrivee', today).eq('statut', 'confirmee').order('date_arrivee').limit(5),
     supabase.from('reservations').select('id, reference, statut, created_at, guest:guests(nom, prenom)').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(6),
-    supabase.from('reservations').select('id, reference, prix_total, date_depart, guest:guests(nom, prenom), room:rooms(numero)').eq('hotel_id', hotelId).eq('statut', 'check_in').order('date_depart').limit(5)
+    supabase.from('reservations').select('id, reference, prix_total, date_depart, guest:guests(nom, prenom), room:rooms(numero)').eq('hotel_id', hotelId).eq('statut', 'check_in').order('date_depart').limit(5),
+    supabase.from('reservations').select('id, reference, date_arrivee, prix_total, source, guest:guests(nom, prenom)').eq('hotel_id', hotelId).eq('statut', 'en_attente').order('created_at', { ascending: false }).limit(10)
   ]);
 
   const allRooms = rooms.data ?? [];
@@ -106,6 +109,7 @@ async function fetchDashboardData(hotelId: string) {
     upcomingReservations: upcomingReservations.data ?? [],
     recentActivity: recentActivity.data ?? [],
     inHouse: inHouse.data ?? [],
+    pendingResas: pendingResas.data ?? [],
     payByMethod: Array.from(payByMethod.entries()).map(([m, v]) => ({ methode: m, total: v, pct: totalPay > 0 ? (v / totalPay) * 100 : 0 })),
     last7Days, maxRev
   };
@@ -200,6 +204,46 @@ async function renderDashboard() {
         </div>
       </div>
 
+      {/* Demandes de réservation en ligne en attente */}
+      {d.pendingResas.length > 0 && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-start gap-3 flex-1">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                <BellRing className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900">
+                  {d.pendingResas.length} demande{d.pendingResas.length > 1 ? 's' : ''} de réservation en attente
+                </h3>
+                <p className="text-sm text-amber-800">
+                  À confirmer pour réserver la chambre du client.
+                  {' '}
+                  {d.pendingResas.slice(0, 3).map((r: any, i: number) => (
+                    <span key={r.id}>
+                      {i > 0 ? ', ' : ''}
+                      <Link href={`/reservations/${r.id}`} className="font-medium underline hover:text-amber-900">
+                        {r.guest?.prenom ?? ''} {r.guest?.nom ?? ''}
+                      </Link>
+                    </span>
+                  ))}
+                  {d.pendingResas.length > 3 && ` +${d.pendingResas.length - 3}`}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/reservations?filter=en_attente"
+              className="inline-flex items-center justify-center gap-2 bg-amber-600 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-amber-700 transition whitespace-nowrap"
+            >
+              <CheckCircle2 className="w-4 h-4" /> Traiter les demandes
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Raccourcis */}
+      <QuickActions role={user.profile.role} />
+
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard icon={BedDouble} label="Taux d'occupation" value={`${d.occupancy}%`} subtitle={`${d.occupied}/${d.totalRooms} chambres`} tone="brand" />
@@ -207,6 +251,15 @@ async function renderDashboard() {
         <KpiCard icon={TrendingUp} label="ADR" value={formatMoney(d.adr)} subtitle={`RevPAR : ${formatMoney(d.revpar)}`} tone="amber" />
         <KpiCard icon={Sparkles} label="Tâches ménage" value={d.tasksOpen} subtitle="En attente / en cours" tone="rose" />
       </div>
+
+      {/* Lien rapports */}
+      {(user.profile.role === 'admin' || user.profile.role === 'comptable') && (
+        <div className="flex justify-end -mt-2">
+          <Link href="/reports" className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700">
+            <BarChart3 className="w-4 h-4" /> Voir le rapport complet (occupation, ADR, RevPAR…) <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
 
       {/* Panels */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -420,6 +473,32 @@ async function renderDashboard() {
 }
 
 // ============ SUB-COMPONENTS ============
+
+function QuickActions({ role }: { role: UserRole }) {
+  const actions: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; roles: UserRole[] }[] = [
+    { href: '/reservations/new', label: 'Nouvelle réservation', icon: Plus, roles: ['admin', 'receptionniste'] },
+    { href: '/invoices/new', label: 'Nouvelle facture', icon: Receipt, roles: ['admin', 'receptionniste', 'comptable'] },
+    { href: '/restaurant/orders/new', label: 'Prendre une commande', icon: UtensilsCrossed, roles: ['admin', 'serveur', 'receptionniste'] },
+    { href: '/housekeeping', label: 'Ménage', icon: Sparkles, roles: ['admin', 'receptionniste', 'menage'] },
+    { href: '/reports', label: 'Rapports', icon: BarChart3, roles: ['admin', 'comptable'] }
+  ];
+  const items = actions.filter((a) => a.roles.includes(role));
+  if (items.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map(({ href, label, icon: Icon }) => (
+        <Link
+          key={href}
+          href={href}
+          className="inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium px-3.5 py-2 rounded-xl hover:border-brand-300 hover:text-brand-700 hover:shadow-sm transition"
+        >
+          <Icon className="w-4 h-4" /> {label}
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 function KpiCard({ icon: Icon, label, value, subtitle, tone }: any) {
   const tones: Record<string, { bg: string; icon: string }> = {
