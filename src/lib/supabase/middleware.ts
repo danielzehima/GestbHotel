@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Database } from '@/types/database';
 
-const PUBLIC_PATHS = ['/', '/login', '/register', '/auth/callback', '/menu', '/reserver', '/contact', '/legal', '/superadmin'];
+const PUBLIC_PATHS = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/auth/callback', '/menu', '/reserver', '/contact', '/legal', '/superadmin'];
 
 export async function updateSession(request: NextRequest) {
   // Expose le chemin courant aux Server Components (utilisé par le layout pour
