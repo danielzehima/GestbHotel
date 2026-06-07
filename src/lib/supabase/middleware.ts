@@ -2,7 +2,10 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Database } from '@/types/database';
 
-const PUBLIC_PATHS = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/auth/callback', '/menu', '/reserver', '/contact', '/legal', '/superadmin'];
+const PUBLIC_PATHS = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/auth/callback', '/menu', '/reserver', '/contact', '/legal', '/superadmin',
+  // Endpoints API sécurisés par leur propre mécanisme (token / secret / signature)
+  // → ne doivent PAS être redirigés vers /login par le middleware.
+  '/api/ical', '/api/cron', '/api/webhooks'];
 
 export async function updateSession(request: NextRequest) {
   // Expose le chemin courant aux Server Components (utilisé par le layout pour
