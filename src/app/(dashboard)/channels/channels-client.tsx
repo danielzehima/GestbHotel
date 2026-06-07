@@ -159,8 +159,18 @@ export function ChannelsClient({
                   {syncResult.results.map((r) => (
                     <div key={r.feedId} className="text-xs mt-1">
                       {r.ok
-                        ? `✓ ${r.nom} : ${r.imported} importé(s), ${r.removed} retiré(s)`
+                        ? `✓ ${r.nom} : ${r.parsed} événement(s) lu(s) → ${r.imported} importé(s), ${r.updated} mis à jour, ${r.removed} retiré(s)`
                         : `✗ ${r.nom} : ${r.error}`}
+                      {r.insertErrors && r.insertErrors.length > 0 && (
+                        <div className="text-amber-700 mt-0.5">
+                          {r.insertErrors.slice(0, 3).map((err, i) => <div key={i}>⚠ {err}</div>)}
+                        </div>
+                      )}
+                      {r.ok && r.parsed === 0 && (
+                        <div className="text-slate-500 mt-0.5">
+                          Le flux ne contient aucune réservation (calendrier vide).
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

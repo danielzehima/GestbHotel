@@ -127,15 +127,21 @@ export type FeedSyncResult = {
   feedId: string;
   nom: string;
   ok: boolean;
-  imported: number;
-  removed: number;
-  error?: string;
+  parsed: number;       // nb d'events lus dans le flux .ics
+  imported: number;     // nouveaux blocages créés
+  updated: number;      // blocages existants mis à jour
+  removed: number;      // blocages retirés (disparus côté OTA)
+  insertErrors: string[]; // erreurs d'insertion éventuelles
+  error?: string;       // erreur globale (fetch, parsing…)
 };
 
 /** Synchronise un flux iCal : importe les blocages, retire ceux disparus. */
 async function syncOneFeed(feed: any): Promise<FeedSyncResult> {
   const sb = createAdminClient();
-  const result: FeedSyncResult = { feedId: feed.id, nom: feed.nom, ok: false, imported: 0, removed: 0 };
+  const result: FeedSyncResult = {
+    feedId: feed.id, nom: feed.nom, ok: false,
+    parsed: 0, imported: 0, updated: 0, removed: 0, insertErrors: [],
+  };
 
   try {
     const res = await fetch(feed.url, {
@@ -146,18 +152,28 @@ async function syncOneFeed(feed: any): Promise<FeedSyncResult> {
 
     const content = await res.text();
     const events = parseICalFeed(content);
+    result.parsed = events.length;
 
     const guestId = await getOrCreateOtaGuest(feed.hotel_id);
     if (!guestId) throw new Error('Impossible de créer le client OTA');
 
     const seenUids = new Set<string>();
+    let refCounter = 0;
 
     for (const ev of events) {
+      // Garde-fou : iCal exige date_depart > date_arrivee (contrainte DB)
+      if (ev.end <= ev.start) {
+        result.insertErrors.push(`Période invalide (${ev.start} → ${ev.end}) ignorée`);
+        continue;
+      }
+
       // UID unique par feed pour éviter les collisions entre OTA
       const uid = `${feed.id}:${ev.uid}`;
       seenUids.add(uid);
 
-      const reference = `OTA-${feed.nom.slice(0, 4).toUpperCase()}-${ev.uid.slice(0, 8)}`;
+      // Référence unique et courte (évite la collision sur unique(hotel_id, reference))
+      refCounter++;
+      const reference = `OTA-${feed.nom.slice(0, 3).toUpperCase()}-${Date.now().toString(36).slice(-4)}${refCounter}`.toUpperCase();
 
       // Upsert basé sur (hotel_id, ical_uid) — index unique garantit l'idempotence
       const { data: existing } = await sb
@@ -181,12 +197,15 @@ async function syncOneFeed(feed: any): Promise<FeedSyncResult> {
       };
 
       if (existing) {
-        await sb.from('reservations')
+        const { error: upErr } = await sb.from('reservations')
           .update({ date_arrivee: ev.start, date_depart: ev.end, notes: ev.summary })
           .eq('id', (existing as any).id);
+        if (upErr) result.insertErrors.push(`MAJ ${ev.start}: ${upErr.message}`);
+        else result.updated++;
       } else {
-        await sb.from('reservations').insert({ ...payload, reference });
-        result.imported++;
+        const { error: insErr } = await sb.from('reservations').insert({ ...payload, reference });
+        if (insErr) result.insertErrors.push(`Insert ${ev.start}: ${insErr.message}`);
+        else result.imported++;
       }
     }
 
