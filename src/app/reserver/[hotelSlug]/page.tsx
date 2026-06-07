@@ -124,7 +124,7 @@ export default async function PublicBookingPage(props: {
               ) : (
                 <div className="space-y-4">
                   {results.map((rt) => {
-                    const total = rt.prix_nuit * nights;
+                    const hasDynamicPrice = rt.prix_effectif !== rt.prix_nuit;
                     return (
                       <div key={rt.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                         {rt.photos[0] && (
@@ -134,7 +134,14 @@ export default async function PublicBookingPage(props: {
                         <div className="p-5">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="flex-1 min-w-[200px]">
-                              <h3 className="text-lg font-bold text-slate-900">{rt.libelle}</h3>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-lg font-bold text-slate-900">{rt.libelle}</h3>
+                                {rt.activeRuleNames.map((name) => (
+                                  <span key={name} className="text-[11px] bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">
+                                    {name}
+                                  </span>
+                                ))}
+                              </div>
                               <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                                 <Users className="w-3.5 h-3.5" /> {rt.capacite_adultes} adulte{rt.capacite_adultes > 1 ? 's' : ''}
                                 {rt.capacite_enfants > 0 && `, ${rt.capacite_enfants} enfant${rt.capacite_enfants > 1 ? 's' : ''}`}
@@ -152,10 +159,15 @@ export default async function PublicBookingPage(props: {
                               </p>
                             </div>
                             <div className="text-right">
-                              <div className="text-2xl font-bold text-slate-900">{formatMoney(rt.prix_nuit, hotel.devise)}</div>
-                              <div className="text-xs text-slate-500">/ nuit</div>
+                              {hasDynamicPrice && (
+                                <div className="text-xs text-slate-400 line-through">{formatMoney(rt.prix_nuit, hotel.devise)}</div>
+                              )}
+                              <div className={`text-2xl font-bold ${hasDynamicPrice ? 'text-amber-600' : 'text-slate-900'}`}>
+                                {formatMoney(rt.prix_effectif, hotel.devise)}
+                              </div>
+                              <div className="text-xs text-slate-500">/ nuit moy.</div>
                               <div className="mt-1 text-sm font-semibold text-brand-700">
-                                Total : {formatMoney(total, hotel.devise)}
+                                Total : {formatMoney(rt.prix_total_sejour, hotel.devise)}
                               </div>
                             </div>
                           </div>

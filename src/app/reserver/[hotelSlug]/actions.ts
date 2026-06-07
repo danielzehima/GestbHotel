@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPublicHotelBySlug, searchAvailability, nightsBetween } from '@/lib/availability';
 import { sendBookingGuestConfirmation, sendBookingHotelNotification } from '@/lib/email';
+import { computeEffectivePrice, validatePromoCode, incrementPromoUsage } from '@/lib/pricing';
 
 export type BookingResult =
   | { ok: true; reference: string }
@@ -19,7 +20,8 @@ const schema = z.object({
   nom: z.string().min(1).max(100),
   prenom: z.string().min(1).max(100),
   email: z.string().email('Email invalide'),
-  telephone: z.string().min(4, 'Téléphone requis').max(30)
+  telephone: z.string().min(4, 'Téléphone requis').max(30),
+  promo_code: z.string().max(50).optional().or(z.literal(''))
 });
 
 function generateRef() {
@@ -64,8 +66,31 @@ export async function createPublicBooking(formData: FormData): Promise<BookingRe
     return { ok: false, error: "Désolé, ce type de chambre n'est plus disponible pour ces dates." };
   }
 
+  // Code promo (optionnel)
+  let promo = null;
+  if (d.promo_code) {
+    promo = await validatePromoCode(hotel.id, d.promo_code);
+    if (!promo) {
+      return { ok: false, error: 'Code promo invalide ou expiré.' };
+    }
+  }
+
+  // Calcul prix avec tarification avancée
   const nights = nightsBetween(d.date_arrivee, d.date_depart);
-  const prixTotal = roomType.prix_nuit * nights;
+  let prixTotal = roomType.prix_nuit * nights;
+  try {
+    const pricing = await computeEffectivePrice({
+      basePrice: roomType.prix_nuit,
+      arrivee: d.date_arrivee,
+      depart: d.date_depart,
+      hotelId: hotel.id,
+      roomTypeId: d.room_type_id,
+      promo
+    });
+    prixTotal = pricing.total;
+  } catch (e) {
+    console.warn('[booking] pricing compute failed, using base price:', (e as any)?.message);
+  }
 
   const sb = createAdminClient();
 
@@ -126,6 +151,11 @@ export async function createPublicBooking(formData: FormData): Promise<BookingRe
     sendBookingHotelNotification({ to: hotel.email, ...common }).catch((e) =>
       console.error('[booking] hotel email:', e?.message)
     );
+  }
+
+  // Incrémenter l'usage du code promo si appliqué
+  if (promo) {
+    incrementPromoUsage(promo.id).catch(() => {});
   }
 
   return { ok: true, reference };

@@ -61,6 +61,16 @@ export function BookingForm({ hotelSlug, roomTypeId, dates, adultes, enfants }: 
         <input name="telephone" required placeholder="Téléphone (WhatsApp)" className="input" />
       </div>
 
+      {/* Code promo */}
+      <div className="flex gap-2">
+        <input
+          name="promo_code"
+          placeholder="Code promo (optionnel)"
+          className="input flex-1 uppercase"
+          style={{ textTransform: 'uppercase' }}
+        />
+      </div>
+
       {error && (
         <p className="text-sm bg-red-50 text-red-700 border border-red-200 rounded-lg py-2 px-3">{error}</p>
       )}

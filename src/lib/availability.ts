@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { computeEffectivePrice } from './pricing';
 
 /**
  * Calcul de disponibilité pour le moteur de réservation en ligne (public).
@@ -36,7 +37,10 @@ export type AvailableRoomType = {
   type: string;
   capacite_adultes: number;
   capacite_enfants: number;
-  prix_nuit: number;
+  prix_nuit: number;         // prix de base du type
+  prix_effectif: number;     // prix moyen/nuit après règles de tarification
+  prix_total_sejour: number; // total pour la période complète
+  activeRuleNames: string[]; // noms des règles appliquées (pour badge "Promo", "Saison haute"…)
   description: string | null;
   photos: string[];
   equipements: string[];
@@ -118,28 +122,62 @@ export async function searchAvailability(params: {
     if (typeId) usedByType.set(typeId, (usedByType.get(typeId) ?? 0) + 1);
   }
 
-  return (types as any[])
+  // Filtrer d'abord les types disponibles
+  const availableTypes = (types as any[])
     .map((t) => {
       const total = bookableByType.get(t.id) ?? 0;
       const used = usedByType.get(t.id) ?? 0;
       const available = Math.max(0, total - used);
+      return { t, available };
+    })
+    .filter(
+      ({ t, available }) =>
+        available > 0 &&
+        (t.capacite_adultes ?? 0) >= adultes &&
+        (t.capacite_enfants ?? 0) >= enfants
+    );
+
+  // Calculer les prix effectifs en parallèle (avec règles de tarification)
+  const results = await Promise.all(
+    availableTypes.map(async ({ t, available }) => {
+      const basePrice = Number(t.prix_nuit);
+      let prix_effectif = basePrice;
+      let prix_total_sejour = basePrice * nightsBetween(arrivee, depart);
+      let activeRuleNames: string[] = [];
+
+      try {
+        const pricing = await computeEffectivePrice({
+          basePrice,
+          arrivee,
+          depart,
+          hotelId,
+          roomTypeId: t.id
+        });
+        prix_effectif = pricing.avgPricePerNight;
+        prix_total_sejour = pricing.total;
+        activeRuleNames = pricing.activeRuleNames;
+      } catch (e) {
+        // Fallback silencieux : on garde le prix de base
+        console.warn('[availability] pricing compute failed for', t.id, (e as any)?.message);
+      }
+
       return {
         id: t.id,
         libelle: t.libelle,
         type: t.type,
         capacite_adultes: t.capacite_adultes ?? 0,
         capacite_enfants: t.capacite_enfants ?? 0,
-        prix_nuit: Number(t.prix_nuit),
+        prix_nuit: basePrice,
+        prix_effectif,
+        prix_total_sejour,
+        activeRuleNames,
         description: t.description,
         photos: Array.isArray(t.photos) ? t.photos : [],
         equipements: Array.isArray(t.equipements) ? t.equipements : [],
         available
       } as AvailableRoomType;
     })
-    .filter(
-      (t) =>
-        t.available > 0 &&
-        t.capacite_adultes >= adultes &&
-        t.capacite_enfants >= enfants
-    );
+  );
+
+  return results;
 }
