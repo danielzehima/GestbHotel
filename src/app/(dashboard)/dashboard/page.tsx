@@ -180,6 +180,18 @@ async function renderDashboard() {
     );
   }
 
+  // Vérifier si l'onboarding est complété (admin seulement)
+  let onboardingDone = true;
+  if (user.profile.role === 'admin') {
+    const supabaseCheck = await createClient();
+    const { data: hotelCheck } = await supabaseCheck
+      .from('hotels')
+      .select('parametres')
+      .eq('id', user.profile.hotel_id)
+      .single();
+    onboardingDone = (hotelCheck as any)?.parametres?.onboarding_done === true;
+  }
+
   const d = await fetchDashboardData(user.profile.hotel_id);
   const now = new Date();
   const greeting = now.getHours() < 12 ? 'Bonjour' : now.getHours() < 18 ? 'Bon après-midi' : 'Bonsoir';
@@ -203,6 +215,33 @@ async function renderDashboard() {
           </p>
         </div>
       </div>
+
+      {/* Banner onboarding — visible tant que la configuration n'est pas terminée */}
+      {!onboardingDone && user.profile.role === 'admin' && (
+        <Link href="/onboarding" className="block">
+          <div className="bg-gradient-to-r from-brand-600 to-indigo-600 rounded-2xl p-4 sm:p-5 text-white hover:opacity-95 transition">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-lg">Finalisez la configuration de votre hôtel</h3>
+                <p className="text-brand-100 text-sm mt-0.5">
+                  Configurez vos chambres et votre page de réservation en ligne en 2 minutes.
+                </p>
+              </div>
+              <ArrowRight className="w-5 h-5 shrink-0 text-brand-200" />
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              {['Infos hôtel', 'Chambres', 'Lien de réservation'].map((label, i) => (
+                <span key={label} className="text-xs bg-white/20 px-2.5 py-1 rounded-full">
+                  {i + 1}. {label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </Link>
+      )}
 
       {/* Demandes de réservation en ligne en attente */}
       {d.pendingResas.length > 0 && (
