@@ -6,6 +6,9 @@ import { FAQ } from '@/components/landing/faq';
 import { CTA } from '@/components/landing/cta';
 import { Footer } from '@/components/landing/footer';
 
+// La page d'accueil utilise cookies() via getPlanPrices() → rendu dynamique obligatoire
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   return (
     <>

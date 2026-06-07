@@ -35,7 +35,12 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     .eq('id', (await supabase.auth.getUser()).data.user!.id);
 
   revalidatePath('/', 'layout');
-  redirect('/dashboard');
+
+  // Rediriger vers la page demandée (ex: /reservations?filter=en_attente) ou dashboard par défaut
+  const redirectTo = formData.get('redirectTo')?.toString() || '/dashboard';
+  // Sécurité : n'autoriser que les chemins relatifs (évite open redirect)
+  const safePath = redirectTo.startsWith('/') ? redirectTo : '/dashboard';
+  redirect(safePath);
 }
 
 export async function logoutAction() {

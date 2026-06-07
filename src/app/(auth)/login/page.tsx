@@ -22,7 +22,8 @@ const FEATURES = [
   }
 ];
 
-export default function LoginPage() {
+export default function LoginPage({ searchParams }: { searchParams: { redirect?: string } }) {
+  const redirectTo = searchParams?.redirect || '/dashboard';
   return (
     <main className="min-h-screen grid lg:grid-cols-2">
       {/* PANNEAU GAUCHE — branding */}
@@ -87,7 +88,7 @@ export default function LoginPage() {
           <h2 className="text-2xl font-bold text-slate-900">Se connecter</h2>
           <p className="text-slate-500 mt-1 mb-7">Entrez vos identifiants pour continuer</p>
 
-          <LoginForm />
+          <LoginForm redirectTo={redirectTo} />
 
           <p className="text-center text-sm text-slate-500 mt-6">
             Pas encore de compte ?{' '}

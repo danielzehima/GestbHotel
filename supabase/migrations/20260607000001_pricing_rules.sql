@@ -48,6 +48,11 @@ ALTER TABLE pricing_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE promo_codes    ENABLE ROW LEVEL SECURITY;
 
 -- pricing_rules : lecture par les membres de l'hôtel, écriture par admin
+DROP POLICY IF EXISTS "pricing_rules_read"  ON pricing_rules;
+DROP POLICY IF EXISTS "pricing_rules_write" ON pricing_rules;
+DROP POLICY IF EXISTS "promo_codes_read"    ON promo_codes;
+DROP POLICY IF EXISTS "promo_codes_write"   ON promo_codes;
+
 CREATE POLICY "pricing_rules_read"
   ON pricing_rules FOR SELECT
   USING (

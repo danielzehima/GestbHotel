@@ -21,12 +21,13 @@ function SubmitButton() {
   );
 }
 
-export function LoginForm() {
+export function LoginForm({ redirectTo = '/dashboard' }: { redirectTo?: string }) {
   const [state, formAction] = useActionState<LoginState, FormData>(loginAction, null);
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <form action={formAction} className="space-y-4">
+      <input type="hidden" name="redirectTo" value={redirectTo} />
       {/* Email */}
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">

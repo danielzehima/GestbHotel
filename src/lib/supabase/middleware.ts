@@ -50,8 +50,11 @@ export async function updateSession(request: NextRequest) {
 
   if (!user && !isPublic) {
     const redirectUrl = request.nextUrl.clone();
+    // Préserver pathname + search params (ex: /reservations?filter=en_attente)
+    const fullPath = path + (request.nextUrl.search || '');
     redirectUrl.pathname = '/login';
-    redirectUrl.searchParams.set('redirect', path);
+    redirectUrl.search = '';
+    redirectUrl.searchParams.set('redirect', fullPath);
     return NextResponse.redirect(redirectUrl);
   }
 
