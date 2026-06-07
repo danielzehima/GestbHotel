@@ -59,19 +59,21 @@ export async function buildExportFeed(params: {
     sb.from('hotels').select('nom').eq('id', hotelId).maybeSingle(),
     sb.from('room_types').select('libelle').eq('id', roomTypeId).eq('hotel_id', hotelId).maybeSingle(),
     sb.from('reservations')
-      .select('id, reference, date_arrivee, date_depart, statut, ical_uid, room:rooms(room_type_id)')
+      .select('id, reference, date_arrivee, date_depart, statut, ical_uid, room_type_id, room:rooms(room_type_id)')
       .eq('hotel_id', hotelId)
       .in('statut', ACTIVE_STATUSES),
   ]);
 
   if (!roomType) return null;
 
-  // Filtrer les réservations de ce type de chambre (via room_type_id direct OU via la chambre assignée)
+  // Filtrer les réservations de ce type de chambre :
+  //  - réservations en ligne sans chambre assignée → room_type_id direct sur la résa
+  //  - réservations avec chambre assignée → type de la chambre
   const events: ICalEvent[] = [];
   for (const r of (resas ?? []) as any[]) {
-    const typeId = r.room?.room_type_id ?? r.room_type_id;
-    // On compare au type demandé ; on garde aussi les résas sans room assignée portant ce room_type_id
-    const matchesType = typeId === roomTypeId || r.room_type_id === roomTypeId;
+    const typeViaRoom = r.room?.room_type_id ?? null;
+    const typeDirect = r.room_type_id ?? null;
+    const matchesType = typeViaRoom === roomTypeId || typeDirect === roomTypeId;
     if (!matchesType) continue;
 
     // Ne pas ré-exporter un blocage importé d'une OTA (éviter les boucles)
