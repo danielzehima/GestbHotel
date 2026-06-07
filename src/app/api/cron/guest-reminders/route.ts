@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendArrivalReminderEmail } from '@/lib/email';
+import { syncAllFeeds } from '@/lib/ical-sync';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -82,5 +83,16 @@ export async function GET(req: Request) {
   }
 
   console.info(`[cron guest-reminders] ${sent} rappel(s) d'arrivée envoyé(s)`);
-  return NextResponse.json({ ok: true, checked: resas?.length ?? 0, sent });
+
+  // Synchronisation des flux iCal (Channel Manager) — intégrée ici pour rester
+  // dans la limite de 2 crons du plan Hobby Vercel.
+  let icalSync: { feeds: number; imported: number; removed: number } | null = null;
+  try {
+    icalSync = await syncAllFeeds();
+    console.info(`[cron ical-sync] ${icalSync.feeds} flux, ${icalSync.imported} importés, ${icalSync.removed} retirés`);
+  } catch (e: any) {
+    console.error('[cron ical-sync] échec:', e?.message);
+  }
+
+  return NextResponse.json({ ok: true, checked: resas?.length ?? 0, sent, icalSync });
 }

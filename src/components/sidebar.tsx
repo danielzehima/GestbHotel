@@ -19,7 +19,8 @@ import {
   LogOut,
   Hotel,
   X,
-  Tag
+  Tag,
+  Radio
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { logoutAction } from '@/app/(auth)/login/actions';
@@ -54,6 +55,8 @@ const NAV: NavItem[] = [
   { href: '/reports', label: 'Rapports', icon: BarChart3,
     roles: ['admin','comptable'] },
   { href: '/tarification', label: 'Tarification', icon: Tag,
+    roles: ['admin'] },
+  { href: '/channels', label: 'Channel Manager', icon: Radio,
     roles: ['admin'] },
   { href: '/staff', label: 'Personnel', icon: Users,
     roles: ['admin'] },
