@@ -36,7 +36,8 @@ export async function GET(
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': `inline; filename="gesthotel-${cleanRoomTypeId}.ics"`,
-      'Cache-Control': 'public, max-age=300',
+      // Pas de cache : la disponibilité doit toujours être à jour pour les OTA
+      'Cache-Control': 'no-store, max-age=0',
     },
   });
 }

@@ -146,13 +146,23 @@ async function syncOneFeed(feed: any): Promise<FeedSyncResult> {
   };
 
   try {
-    const res = await fetch(feed.url, {
-      headers: { 'User-Agent': 'GestHotel-ChannelManager/1.0' },
+    // Cache-busting : force une réponse fraîche (évite le cache CDN qui pourrait
+    // servir une version périmée de notre propre flux ou d'un flux OTA).
+    const bustUrl = feed.url + (feed.url.includes('?') ? '&' : '?') + `_cb=${Date.now()}`;
+    const res = await fetch(bustUrl, {
+      headers: { 'User-Agent': 'GestHotel-ChannelManager/1.0', 'Cache-Control': 'no-cache' },
+      cache: 'no-store',
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const content = await res.text();
+
+    // Contrôle de sanité : on doit recevoir de l'iCal, pas une page HTML d'erreur/login
+    if (!content.includes('BEGIN:VCALENDAR')) {
+      const preview = content.slice(0, 120).replace(/\s+/g, ' ').trim();
+      throw new Error(`Réponse non-iCal reçue : "${preview}…"`);
+    }
     const events = parseICalFeed(content);
     result.parsed = events.length;
 
