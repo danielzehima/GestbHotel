@@ -131,7 +131,7 @@ export async function POST(req: Request) {
       `[geniuspay webhook] forfait activé — hôtel ${row.hotel_id}, ${PLAN_LABELS[row.plan as Plan]}, expire ${expires.toISOString()}`
     );
 
-    // Reçu par email (non bloquant)
+    // Reçu par email avec PDF en pièce jointe (non bloquant)
     const email = (hotel as any)?.email;
     if (email) {
       sendSubscriptionReceiptEmail({
@@ -141,7 +141,8 @@ export async function POST(req: Request) {
         months,
         amount: Number(row.amount),
         reference,
-        expiresAt: expires
+        expiresAt: expires,
+        paidAt: now
       }).catch((e) => console.error('[geniuspay webhook] email reçu:', e?.message));
     }
   }

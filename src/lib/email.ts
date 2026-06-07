@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { createAdminClient } from './supabase/admin';
+import { generateSubscriptionReceiptPDF } from './pdf/subscription-receipt';
 
 /**
  * Helper d'envoi d'emails via Resend.
@@ -18,6 +19,7 @@ type SendArgs = {
   subject: string;
   html: string;
   replyTo?: string;
+  attachments?: Array<{ filename: string; content: Buffer | string }>;
 };
 
 export type EmailResult = { ok: true } | { ok: false; error: string };
@@ -115,7 +117,8 @@ export async function sendEmail(args: SendArgs): Promise<EmailResult> {
       to: args.to,
       subject: args.subject,
       html: args.html,
-      replyTo: args.replyTo
+      replyTo: args.replyTo,
+      ...(args.attachments?.length ? { attachments: args.attachments } : {})
     });
     if (error) {
       console.error('[email] Resend error:', error.message, '| subject:', args.subject, '| to:', args.to);
@@ -402,6 +405,7 @@ export async function sendSubscriptionReceiptEmail(data: {
   amount: number;
   reference: string;
   expiresAt: Date;
+  paidAt?: Date;
 }) {
   const planNom = PLAN_LABELS_EMAIL[data.plan] ?? data.plan;
   const montant = data.amount.toLocaleString('fr-FR');
@@ -436,14 +440,34 @@ export async function sendSubscriptionReceiptEmail(data: {
       </a>
     </p>
     <p style="margin:8px 0 0; font-size:12px; color:#94a3b8;">
-      Ce reçu fait foi de votre paiement. Conservez-le.
+      Votre reçu PDF est joint à cet email. Conservez-le pour vos archives.
     </p>
   `);
+
+  // Génération du PDF (non bloquant si échec)
+  let pdfBuffer: Buffer | undefined;
+  try {
+    pdfBuffer = await generateSubscriptionReceiptPDF({
+      hotelNom: data.hotelNom,
+      plan: data.plan,
+      months: data.months,
+      amount: data.amount,
+      reference: data.reference,
+      expiresAt: data.expiresAt,
+      paidAt: data.paidAt
+    });
+    console.info('[email] PDF reçu généré ✓ pour', data.reference);
+  } catch (e: any) {
+    console.error('[email] échec génération PDF reçu:', e?.message);
+  }
+
+  const filename = `recu-gesthotel-${data.reference.toLowerCase()}.pdf`;
 
   return sendEmail({
     to: data.to,
     subject: `Reçu GestHotel — Forfait ${planNom} activé`,
-    html
+    html,
+    ...(pdfBuffer ? { attachments: [{ filename, content: pdfBuffer }] } : {})
   });
 }
 
