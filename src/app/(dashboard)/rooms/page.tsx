@@ -26,14 +26,35 @@ export default async function RoomsPage(props: { searchParams: Promise<SearchPar
 
   if (statut) query = query.eq('statut', statut);
 
-  const [{ data: rooms }, { data: types }] = await Promise.all([
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [{ data: rooms }, { data: types }, { data: activeResas }] = await Promise.all([
     query,
     supabase
       .from('room_types')
       .select('id, libelle, type, prix_nuit, hotel_id, code, capacite_adultes, capacite_enfants, description, equipements, photos, created_at')
       .eq('hotel_id', user.profile.hotel_id!)
-      .order('libelle')
+      .order('libelle'),
+    // Réservations actives couvrant aujourd'hui AVEC une chambre assignée
+    supabase
+      .from('reservations')
+      .select('room_id')
+      .eq('hotel_id', user.profile.hotel_id!)
+      .in('statut', ['confirmee', 'check_in'])
+      .lte('date_arrivee', today)
+      .gt('date_depart', today)
+      .not('room_id', 'is', null)
   ]);
+
+  // Chambres réservées aujourd'hui → affichées "occupée" automatiquement.
+  // Les statuts physiques (nettoyage/maintenance/hors service) restent prioritaires.
+  const PHYSICAL_PRIORITY = ['nettoyage', 'maintenance', 'hors_service'];
+  const occupiedToday = new Set((activeResas ?? []).map((r: any) => r.room_id));
+  const roomsDisplayed = (rooms ?? []).map((r: any) =>
+    occupiedToday.has(r.id) && !PHYSICAL_PRIORITY.includes(r.statut)
+      ? { ...r, statut: 'occupee' }
+      : r
+  );
 
   const canManage = user.profile.role === 'admin' || user.profile.role === 'receptionniste';
 
@@ -90,7 +111,7 @@ export default async function RoomsPage(props: { searchParams: Promise<SearchPar
         />
       ) : (
         <RoomsGrid
-          rooms={rooms as unknown as Room[]}
+          rooms={roomsDisplayed as unknown as Room[]}
           types={(types ?? []) as RoomType[]}
           canManage={canManage}
           currentStatus={statut}
