@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireRole } from '@/lib/auth';
+import { getHotelPlanLimits, checkLimit } from '@/lib/plan-limits';
+import { sendTeamInviteEmail, sendPasswordResetEmail } from '@/lib/email';
 
 const schema = z.object({
   nom: z.string().min(1).max(100),
