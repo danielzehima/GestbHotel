@@ -90,6 +90,20 @@ export async function updateOrderStatus(id: string, statut: OrderStatus): Promis
   return { ok: true };
 }
 
+export async function resolveServiceCall(id: string): Promise<ActionResult> {
+  const user = await requireRole(['admin', 'serveur', 'cuisine', 'receptionniste']);
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('service_calls')
+    .update({ statut: 'traite', handled_at: new Date().toISOString(), handled_by: user.profile.id })
+    .eq('id', id)
+    .eq('hotel_id', user.profile.hotel_id!);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/restaurant/kitchen');
+  revalidatePath('/restaurant');
+  return { ok: true };
+}
+
 export async function deleteOrder(id: string): Promise<ActionResult> {
   await requireRole(['admin', 'serveur', 'receptionniste']);
   const supabase = await createClient();

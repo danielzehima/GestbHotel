@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { Plus, Minus, ShoppingCart, X, Loader2, CheckCircle2, Utensils } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, X, Loader2, CheckCircle2, Utensils, BellRing } from 'lucide-react';
 import { formatMoney } from '@/lib/utils/format';
-import { createPublicOrder } from './actions';
+import { createPublicOrder, callWaiter } from './actions';
 
 export type MenuItem = {
   id: string;
@@ -40,6 +40,21 @@ export function MenuOrder({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [callPending, startCall] = useTransition();
+  const [called, setCalled] = useState(false);
+
+  function call() {
+    setCalled(false);
+    startCall(async () => {
+      const r = await callWaiter({ hotelSlug, qrCode });
+      if (r.ok) {
+        setCalled(true);
+        setTimeout(() => setCalled(false), 6000);
+      } else {
+        setError(r.error);
+      }
+    });
+  }
 
   const itemById = useMemo(() => {
     const m = new Map<string, MenuItem>();
@@ -121,9 +136,29 @@ export function MenuOrder({
     <>
       <div className="max-w-2xl mx-auto px-4 pt-6 pb-32">
         <h2 className="text-2xl font-bold text-slate-900 mb-1">Notre carte</h2>
-        <p className="text-slate-600 mb-6">
+        <p className="text-slate-600 mb-4">
           Ajoutez vos plats au panier, puis envoyez votre commande directement en cuisine.
         </p>
+
+        {/* Appeler le serveur (si le client ne veut pas commander en ligne) */}
+        <div className="mb-6 bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-slate-900">Vous préférez commander de vive voix ?</p>
+            {called ? (
+              <p className="text-sm text-emerald-600 font-medium">✓ Un serveur arrive à votre table</p>
+            ) : (
+              <p className="text-xs text-slate-500">Appelez un serveur à votre table.</p>
+            )}
+          </div>
+          <button
+            onClick={call}
+            disabled={callPending || called}
+            className="shrink-0 inline-flex items-center gap-2 bg-amber-500 text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-amber-600 active:scale-95 transition disabled:opacity-60"
+          >
+            {callPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BellRing className="w-4 h-4" />}
+            {called ? 'Serveur appelé' : 'Appeler le serveur'}
+          </button>
+        </div>
 
         <div className="space-y-8">
           {categories.map((c) => (

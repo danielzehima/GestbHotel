@@ -8,6 +8,77 @@ export type PublicOrderResult =
   | { ok: true; numero: string }
   | { ok: false; error: string };
 
+export type CallWaiterResult = { ok: true } | { ok: false; error: string };
+
+const callSchema = z.object({
+  hotelSlug: z.string().min(1),
+  qrCode: z.string().min(1),
+  message: z.string().max(200).optional()
+});
+
+/**
+ * Le client appelle un serveur depuis la carte (QR de table).
+ * Crée un appel "en_attente" visible sur l'écran live de l'hôtel.
+ * Anti-spam : ignore si un appel non traité existe déjà pour cette table (< 5 min).
+ */
+export async function callWaiter(payload: unknown): Promise<CallWaiterResult> {
+  const parsed = callSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { ok: false, error: 'Données invalides' };
+  }
+  const d = parsed.data;
+  const sb = createAdminClient();
+
+  const { data: hotel } = await sb
+    .from('hotels')
+    .select('id, actif')
+    .eq('slug', d.hotelSlug)
+    .maybeSingle();
+  if (!hotel || !(hotel as any).actif) {
+    return { ok: false, error: 'Restaurant indisponible pour le moment.' };
+  }
+  const hotelId = (hotel as any).id as string;
+
+  const { data: table } = await sb
+    .from('restaurant_tables')
+    .select('id')
+    .eq('qr_code', d.qrCode)
+    .eq('hotel_id', hotelId)
+    .maybeSingle();
+  if (!table) {
+    return { ok: false, error: 'Table introuvable. Rescannez le QR code de votre table.' };
+  }
+  const tableId = (table as any).id as string;
+
+  // Anti-spam : un appel récent non traité existe déjà ?
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const { data: recent } = await sb
+    .from('service_calls')
+    .select('id')
+    .eq('table_id', tableId)
+    .eq('statut', 'en_attente')
+    .gte('created_at', fiveMinAgo)
+    .limit(1);
+  if (recent && recent.length > 0) {
+    return { ok: true }; // déjà signalé, on ne crée pas de doublon
+  }
+
+  const { error } = await sb.from('service_calls').insert({
+    hotel_id: hotelId,
+    table_id: tableId,
+    message: d.message?.trim() || null,
+    statut: 'en_attente'
+  });
+  if (error) {
+    console.error('[call-waiter] insert:', error.message);
+    return { ok: false, error: 'Erreur lors de l\'appel. Réessayez.' };
+  }
+
+  revalidatePath('/restaurant/kitchen');
+  revalidatePath('/restaurant');
+  return { ok: true };
+}
+
 const schema = z.object({
   hotelSlug: z.string().min(1),
   qrCode: z.string().min(1),
