@@ -1,5 +1,8 @@
 import { notFound } from 'next/navigation';
-import { Hotel, MapPin, Users, BedDouble, Search, Moon } from 'lucide-react';
+import {
+  Hotel, MapPin, Users, BedDouble, Search, Moon, CalendarDays,
+  ShieldCheck, BadgePercent, Zap, Check, Phone, Sparkles
+} from 'lucide-react';
 import { getPublicHotelBySlug, searchAvailability, nightsBetween } from '@/lib/availability';
 import { formatMoney } from '@/lib/utils/format';
 import { BookingForm } from './booking-form';
@@ -19,6 +22,12 @@ function todayStr(offsetDays = 0) {
 }
 
 type SearchParams = { arrivee?: string; depart?: string; adultes?: string; enfants?: string };
+
+const TRUST = [
+  { icon: BadgePercent, label: 'Sans commission' },
+  { icon: Zap, label: 'Confirmation rapide' },
+  { icon: ShieldCheck, label: 'Réservation directe sécurisée' }
+];
 
 export default async function PublicBookingPage(props: {
   params: Promise<{ hotelSlug: string }>;
@@ -44,158 +53,254 @@ export default async function PublicBookingPage(props: {
     : [];
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-brand-50 to-white pb-16">
-      {/* En-tête hôtel */}
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-3xl mx-auto px-4 py-5 flex items-center gap-3">
-          {hotel.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={hotel.logo_url} alt={hotel.nom} className="w-12 h-12 rounded-xl object-cover" />
-          ) : (
-            <div className="w-12 h-12 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center">
-              <Hotel className="w-6 h-6" />
-            </div>
-          )}
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">{hotel.nom}</h1>
-            {hotel.ville && (
-              <p className="text-sm text-slate-500 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5" /> {hotel.ville}
-              </p>
+    <main className="min-h-screen bg-slate-50 pb-16">
+      {/* ===== HERO ===== */}
+      <header className="relative overflow-hidden bg-gradient-to-br from-brand-600 via-brand-700 to-indigo-800 text-white">
+        {/* halos décoratifs */}
+        <div className="absolute -right-20 -top-24 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute -left-16 bottom-0 w-64 h-64 bg-white/5 rounded-full blur-2xl" />
+
+        <div className="relative max-w-5xl mx-auto px-4 pt-7 pb-24 sm:pb-28">
+          {/* identité hôtel */}
+          <div className="flex items-center gap-3">
+            {hotel.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={hotel.logo_url} alt={hotel.nom} className="w-12 h-12 rounded-xl object-cover ring-2 ring-white/30" />
+            ) : (
+              <div className="w-12 h-12 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center">
+                <Hotel className="w-6 h-6" />
+              </div>
             )}
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold truncate">{hotel.nom}</h1>
+              <div className="flex items-center gap-3 text-sm text-brand-100">
+                {hotel.ville && (
+                  <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {hotel.ville}</span>
+                )}
+                {hotel.telephone && (
+                  <span className="hidden sm:flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> {hotel.telephone}</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* accroche */}
+          <div className="mt-8 max-w-2xl">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-white/15 backdrop-blur px-3 py-1 rounded-full">
+              <Sparkles className="w-3.5 h-3.5" /> Réservation en ligne
+            </span>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-bold leading-tight">
+              Réservez votre séjour en quelques clics
+            </h2>
+            <p className="mt-2 text-brand-100 text-base sm:text-lg">
+              Réservation directe sans commission — confirmation rapide par l'hôtel.
+            </p>
+          </div>
+
+          {/* badges de confiance */}
+          <div className="mt-6 flex flex-wrap gap-2">
+            {TRUST.map(({ icon: Icon, label }) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium bg-white/10 backdrop-blur-sm border border-white/15 px-3 py-1.5 rounded-full"
+              >
+                <Icon className="w-4 h-4 text-emerald-300" /> {label}
+              </span>
+            ))}
           </div>
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 pt-6">
-        <h2 className="text-2xl font-bold text-slate-900 mb-1">Réservez votre séjour</h2>
-        <p className="text-slate-600 mb-5">Réservation directe, sans commission. Confirmation rapide par l'hôtel.</p>
-
-        {/* Formulaire de recherche (GET) */}
-        <form method="get" className="bg-white rounded-2xl border border-slate-200 p-4 grid grid-cols-2 sm:grid-cols-5 gap-3 items-end">
-          <div className="col-span-1">
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Arrivée</label>
-            <input type="date" name="arrivee" defaultValue={arrivee} min={todayStr(0)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+      {/* ===== CARTE DE RECHERCHE (chevauche le hero) ===== */}
+      <div className="max-w-5xl mx-auto px-4 -mt-14 sm:-mt-16 relative z-10">
+        <form
+          method="get"
+          className="bg-white rounded-2xl shadow-xl shadow-slate-900/5 border border-slate-100 p-4 sm:p-5"
+        >
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+            <div className="col-span-1">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mb-1.5">
+                <CalendarDays className="w-3.5 h-3.5" /> Arrivée
+              </label>
+              <input
+                type="date" name="arrivee" defaultValue={arrivee} min={todayStr(0)}
+                className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition"
+              />
+            </div>
+            <div className="col-span-1">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mb-1.5">
+                <CalendarDays className="w-3.5 h-3.5" /> Départ
+              </label>
+              <input
+                type="date" name="depart" defaultValue={depart} min={todayStr(1)}
+                className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition"
+              />
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mb-1.5">
+                <Users className="w-3.5 h-3.5" /> Adultes
+              </label>
+              <input
+                type="number" name="adultes" defaultValue={adultes} min={1} max={20}
+                className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition"
+              />
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mb-1.5">
+                <Users className="w-3.5 h-3.5" /> Enfants
+              </label>
+              <input
+                type="number" name="enfants" defaultValue={enfants} min={0} max={20}
+                className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition"
+              />
+            </div>
+            <button
+              type="submit"
+              className="col-span-2 lg:col-span-1 inline-flex items-center justify-center gap-2 bg-brand-600 text-white font-semibold px-4 py-3 rounded-xl hover:bg-brand-700 active:scale-[0.99] shadow-lg shadow-brand-600/20 transition"
+            >
+              <Search className="w-4 h-4" /> Rechercher
+            </button>
           </div>
-          <div className="col-span-1">
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Départ</label>
-            <input type="date" name="depart" defaultValue={depart} min={todayStr(1)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Adultes</label>
-            <input type="number" name="adultes" defaultValue={adultes} min={1} max={20}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Enfants</label>
-            <input type="number" name="enfants" defaultValue={enfants} min={0} max={20}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <button type="submit"
-            className="col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-2 bg-brand-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-brand-700 transition">
-            <Search className="w-4 h-4" /> Rechercher
-          </button>
         </form>
+      </div>
 
-        {/* Résultats */}
-        <div className="mt-6">
-          {hasSearch && !validRange && (
-            <p className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 text-sm">
-              La date de départ doit être après la date d'arrivée.
-            </p>
-          )}
+      {/* ===== RÉSULTATS ===== */}
+      <div className="max-w-5xl mx-auto px-4 pt-8">
+        {hasSearch && !validRange && (
+          <p className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 text-sm">
+            La date de départ doit être après la date d'arrivée.
+          </p>
+        )}
 
-          {hasSearch && validRange && (
-            <>
-              <p className="text-sm text-slate-500 mb-3 flex items-center gap-2">
-                <Moon className="w-4 h-4" /> {nights} nuit{nights > 1 ? 's' : ''} ·{' '}
-                <Users className="w-4 h-4" /> {adultes} adulte{adultes > 1 ? 's' : ''}
-                {enfants > 0 && `, ${enfants} enfant${enfants > 1 ? 's' : ''}`}
+        {hasSearch && validRange && (
+          <>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-lg font-bold text-slate-900">
+                {results.length > 0 ? 'Chambres disponibles' : 'Disponibilités'}
+              </h3>
+              <p className="text-sm text-slate-500 flex items-center gap-2">
+                <span className="flex items-center gap-1"><Moon className="w-4 h-4" /> {nights} nuit{nights > 1 ? 's' : ''}</span>
+                <span className="text-slate-300">·</span>
+                <span className="flex items-center gap-1">
+                  <Users className="w-4 h-4" /> {adultes}{enfants > 0 ? `+${enfants}` : ''}
+                </span>
               </p>
+            </div>
 
-              {results.length === 0 ? (
-                <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center">
-                  <BedDouble className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                  <p className="font-semibold text-slate-800">Aucune chambre disponible pour ces dates</p>
-                  <p className="text-sm text-slate-500 mt-1">Essayez d'autres dates ou contactez directement l'hôtel.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {results.map((rt) => {
-                    const hasDynamicPrice = rt.prix_effectif !== rt.prix_nuit;
-                    return (
-                      <div key={rt.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                        {rt.photos[0] && (
+            {results.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
+                <BedDouble className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="font-semibold text-slate-800">Aucune chambre disponible pour ces dates</p>
+                <p className="text-sm text-slate-500 mt-1">Essayez d'autres dates ou contactez directement l'hôtel.</p>
+                {hotel.telephone && (
+                  <a
+                    href={`tel:${hotel.telephone}`}
+                    className="mt-4 inline-flex items-center gap-2 bg-slate-900 text-white text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-slate-800 transition"
+                  >
+                    <Phone className="w-4 h-4" /> Appeler l'hôtel
+                  </a>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {results.map((rt) => {
+                  const hasDynamicPrice = rt.prix_effectif !== rt.prix_nuit;
+                  return (
+                    <div
+                      key={rt.id}
+                      className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg hover:border-brand-200 transition sm:flex"
+                    >
+                      {/* Image */}
+                      <div className="sm:w-72 lg:w-80 shrink-0 relative">
+                        {rt.photos[0] ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={rt.photos[0]} alt={rt.libelle} className="w-full h-44 object-cover" />
+                          <img
+                            src={rt.photos[0]}
+                            alt={rt.libelle}
+                            className="w-full h-48 sm:h-full object-cover group-hover:scale-[1.02] transition duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-48 sm:h-full min-h-[180px] bg-gradient-to-br from-brand-100 to-slate-100 flex items-center justify-center">
+                            <BedDouble className="w-12 h-12 text-brand-300" />
+                          </div>
                         )}
-                        <div className="p-5">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="flex-1 min-w-[200px]">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="text-lg font-bold text-slate-900">{rt.libelle}</h3>
-                                {rt.activeRuleNames.map((name) => (
-                                  <span key={name} className="text-[11px] bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">
-                                    {name}
-                                  </span>
-                                ))}
-                              </div>
-                              <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                                <Users className="w-3.5 h-3.5" /> {rt.capacite_adultes} adulte{rt.capacite_adultes > 1 ? 's' : ''}
-                                {rt.capacite_enfants > 0 && `, ${rt.capacite_enfants} enfant${rt.capacite_enfants > 1 ? 's' : ''}`}
-                              </p>
-                              {rt.description && <p className="text-sm text-slate-600 mt-2">{rt.description}</p>}
-                              {rt.equipements.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mt-3">
-                                  {rt.equipements.slice(0, 6).map((e) => (
-                                    <span key={e} className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{e}</span>
-                                  ))}
-                                </div>
-                              )}
-                              <p className="text-xs text-emerald-600 font-medium mt-2">
-                                {rt.available} chambre{rt.available > 1 ? 's' : ''} disponible{rt.available > 1 ? 's' : ''}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              {hasDynamicPrice && (
-                                <div className="text-xs text-slate-400 line-through">{formatMoney(rt.prix_nuit, hotel.devise)}</div>
-                              )}
-                              <div className={`text-2xl font-bold ${hasDynamicPrice ? 'text-amber-600' : 'text-slate-900'}`}>
-                                {formatMoney(rt.prix_effectif, hotel.devise)}
-                              </div>
-                              <div className="text-xs text-slate-500">/ nuit moy.</div>
-                              <div className="mt-1 text-sm font-semibold text-brand-700">
-                                Total : {formatMoney(rt.prix_total_sejour, hotel.devise)}
-                              </div>
-                            </div>
+                        {rt.activeRuleNames.length > 0 && (
+                          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                            {rt.activeRuleNames.map((name) => (
+                              <span key={name} className="text-[11px] bg-amber-400 text-amber-950 font-bold px-2 py-0.5 rounded-full shadow">
+                                {name}
+                              </span>
+                            ))}
                           </div>
+                        )}
+                      </div>
 
-                          <div className="mt-4">
-                            <BookingForm
-                              hotelSlug={hotelSlug}
-                              roomTypeId={rt.id}
-                              dates={{ arrivee, depart }}
-                              adultes={adultes}
-                              enfants={enfants}
-                            />
+                      {/* Contenu */}
+                      <div className="p-5 flex-1 flex flex-col">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-slate-900">{rt.libelle}</h3>
+                          <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                            <Users className="w-3.5 h-3.5" /> {rt.capacite_adultes} adulte{rt.capacite_adultes > 1 ? 's' : ''}
+                            {rt.capacite_enfants > 0 && `, ${rt.capacite_enfants} enfant${rt.capacite_enfants > 1 ? 's' : ''}`}
+                          </p>
+                          {rt.description && <p className="text-sm text-slate-600 mt-2 line-clamp-3">{rt.description}</p>}
+                          {rt.equipements.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-3">
+                              {rt.equipements.slice(0, 6).map((e) => (
+                                <span key={e} className="inline-flex items-center gap-1 text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                                  <Check className="w-3 h-3 text-emerald-500" /> {e}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <p className="text-xs text-emerald-600 font-semibold mt-3 flex items-center gap-1">
+                            <BedDouble className="w-3.5 h-3.5" />
+                            {rt.available} chambre{rt.available > 1 ? 's' : ''} disponible{rt.available > 1 ? 's' : ''}
+                          </p>
+                        </div>
+
+                        {/* Prix + réservation */}
+                        <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-end justify-between gap-3">
+                          <div>
+                            {hasDynamicPrice && (
+                              <span className="text-xs text-slate-400 line-through mr-1">{formatMoney(rt.prix_nuit, hotel.devise)}</span>
+                            )}
+                            <span className={`text-2xl font-bold ${hasDynamicPrice ? 'text-amber-600' : 'text-slate-900'}`}>
+                              {formatMoney(rt.prix_effectif, hotel.devise)}
+                            </span>
+                            <span className="text-xs text-slate-500"> / nuit</span>
+                            <div className="text-sm font-semibold text-brand-700 mt-0.5">
+                              Total séjour : {formatMoney(rt.prix_total_sejour, hotel.devise)}
+                            </div>
                           </div>
+                          <BookingForm
+                            hotelSlug={hotelSlug}
+                            roomTypeId={rt.id}
+                            dates={{ arrivee, depart }}
+                            adultes={adultes}
+                            enfants={enfants}
+                          />
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
 
-          {!hasSearch && (
-            <p className="text-sm text-slate-400 text-center py-8">
-              Choisissez vos dates ci-dessus pour voir les chambres disponibles.
+        {!hasSearch && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-3">
+              <CalendarDays className="w-7 h-7" />
+            </div>
+            <p className="font-semibold text-slate-800">Choisissez vos dates pour commencer</p>
+            <p className="text-sm text-slate-500 mt-1">
+              Sélectionnez votre arrivée, votre départ et le nombre de voyageurs ci-dessus.
             </p>
-          )}
-        </div>
+          </div>
+        )}
 
         <footer className="mt-12 text-center text-xs text-slate-400">
           Propulsé par <strong>GestHotel</strong>

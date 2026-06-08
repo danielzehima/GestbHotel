@@ -1,9 +1,18 @@
 'use client';
 
-import { Download, Printer } from 'lucide-react';
+import Link from 'next/link';
+import { Download, Printer, Lock } from 'lucide-react';
 import type { Analytics } from '@/lib/analytics';
 
-export function ExportButtons({ data, hotelNom }: { data: Analytics; hotelNom: string }) {
+export function ExportButtons({
+  data,
+  hotelNom,
+  canExport = true
+}: {
+  data: Analytics;
+  hotelNom: string;
+  canExport?: boolean;
+}) {
   function exportCsv() {
     const rows: (string | number)[][] = [
       ['Rapport', hotelNom],
@@ -46,12 +55,22 @@ export function ExportButtons({ data, hotelNom }: { data: Analytics; hotelNom: s
 
   return (
     <div className="flex gap-2 print:hidden">
-      <button
-        onClick={exportCsv}
-        className="inline-flex items-center gap-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium px-3 py-2 rounded-lg hover:bg-slate-50 transition"
-      >
-        <Download className="w-4 h-4" /> Exporter CSV
-      </button>
+      {canExport ? (
+        <button
+          onClick={exportCsv}
+          className="inline-flex items-center gap-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium px-3 py-2 rounded-lg hover:bg-slate-50 transition"
+        >
+          <Download className="w-4 h-4" /> Exporter CSV
+        </button>
+      ) : (
+        <Link
+          href="/upgrade"
+          title="L'export CSV/Excel est inclus dans le forfait Premium"
+          className="inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-400 text-sm font-medium px-3 py-2 rounded-lg hover:bg-slate-50 transition"
+        >
+          <Lock className="w-4 h-4" /> Exporter CSV (Premium)
+        </Link>
+      )}
       <button
         onClick={() => window.print()}
         className="inline-flex items-center gap-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium px-3 py-2 rounded-lg hover:bg-slate-50 transition"

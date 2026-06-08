@@ -4,6 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth';
+import { getHotelPlanLimits } from '@/lib/plan-limits';
+
+const MOBILE_METHODS = ['wave', 'orange_money', 'mtn_money', 'moov_money'];
 
 export type ActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -222,6 +225,17 @@ export async function recordPayment(formData: FormData): Promise<ActionResult> {
   const user = await requireRole(['admin', 'receptionniste', 'comptable']);
   const parsed = paymentSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalide' };
+
+  // Garde-fou forfait : Mobile Money réservé aux forfaits qui l'incluent (Standard+)
+  if (MOBILE_METHODS.includes(parsed.data.methode)) {
+    const { limits } = await getHotelPlanLimits(user.profile.hotel_id!);
+    if (!limits.mobileMoney) {
+      return {
+        ok: false,
+        error: "Le paiement Mobile Money (Wave/OM/MTN/Moov) n'est pas inclus dans votre forfait. Passez au forfait Standard pour l'activer."
+      };
+    }
+  }
 
   const supabase = await createClient();
 

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/ui/page-header';
 import { formatMoney, formatDate } from '@/lib/utils/format';
 import { computeAnalytics } from '@/lib/analytics';
+import { getHotelPlanLimits } from '@/lib/plan-limits';
 import { cn } from '@/lib/utils/cn';
 import { ExportButtons } from './export-buttons';
 
@@ -58,6 +59,7 @@ export default async function ReportsPage(props: { searchParams: Promise<SearchP
   const hotelNom = (hotelRow as any)?.nom ?? '';
 
   const a = await computeAnalytics(user.profile.hotel_id!, from, to);
+  const { limits } = await getHotelPlanLimits(user.profile.hotel_id!);
   const m = (n: number) => formatMoney(Math.round(n), a.devise);
   const activePreset = !sp.from && (sp.preset || 'this_month');
 
@@ -66,7 +68,7 @@ export default async function ReportsPage(props: { searchParams: Promise<SearchP
       <PageHeader
         title="Rapports & analytics"
         description={`Période : ${formatDate(from)} → ${formatDate(addDays(to, -1))} (${label})`}
-        actions={<ExportButtons data={a} hotelNom={hotelNom} />}
+        actions={<ExportButtons data={a} hotelNom={hotelNom} canExport={limits.exports} />}
       />
 
       {/* Sélecteur de période */}

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getHotelPlanLimits } from '@/lib/plan-limits';
 
 export type PublicOrderResult =
   | { ok: true; numero: string }
@@ -38,6 +39,12 @@ export async function callWaiter(payload: unknown): Promise<CallWaiterResult> {
     return { ok: false, error: 'Restaurant indisponible pour le moment.' };
   }
   const hotelId = (hotel as any).id as string;
+
+  // Garde-fou forfait : module Restaurant requis (Standard+) et forfait non expiré
+  const { limits, isExpired } = await getHotelPlanLimits(hotelId);
+  if (isExpired || !limits.restaurant) {
+    return { ok: false, error: 'Service momentanément indisponible.' };
+  }
 
   const { data: table } = await sb
     .from('restaurant_tables')
@@ -126,6 +133,12 @@ export async function createPublicOrder(payload: unknown): Promise<PublicOrderRe
     return { ok: false, error: 'Restaurant indisponible pour le moment.' };
   }
   const hotelId = (hotel as any).id as string;
+
+  // Garde-fou forfait : module Restaurant requis (Standard+) et forfait non expiré
+  const { limits, isExpired } = await getHotelPlanLimits(hotelId);
+  if (isExpired || !limits.restaurant) {
+    return { ok: false, error: 'La commande en ligne est momentanément indisponible.' };
+  }
 
   // 2. Table via QR (doit appartenir à cet hôtel)
   const { data: table } = await sb
