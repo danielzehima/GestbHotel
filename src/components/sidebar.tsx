@@ -111,8 +111,8 @@ export function Sidebar({
           'flex flex-col bg-white border-r border-slate-200',
           // Desktop : statique, sticky
           'md:flex md:w-64 md:h-screen md:sticky md:top-0',
-          // Mobile : drawer slide-in
-          'fixed md:static inset-y-0 left-0 z-50 w-72 max-w-[80vw] h-screen',
+          // Mobile : drawer slide-in — h-[100dvh] pour tenir compte de la barre du navigateur mobile
+          'fixed md:static inset-y-0 left-0 z-50 w-72 max-w-[80vw] h-screen h-[100dvh]',
           'transition-transform duration-300 ease-out shadow-2xl md:shadow-none',
           mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
