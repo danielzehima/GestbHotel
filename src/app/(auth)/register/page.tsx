@@ -1,63 +1,105 @@
 import Link from 'next/link';
-import { Hotel, Check } from 'lucide-react';
+import { Hotel, CheckCircle2, BedDouble, UtensilsCrossed, Receipt, Users } from 'lucide-react';
 import { RegisterForm } from './register-form';
 
 export const metadata = { title: 'Créer un compte — GestHotel' };
 
+const FEATURES = [
+  {
+    icon: BedDouble,
+    title: 'Chambres & réservations',
+    desc: 'Calendrier interactif des disponibilités, sans surréservation'
+  },
+  {
+    icon: UtensilsCrossed,
+    title: 'Restaurant avec QR code',
+    desc: 'Carte digitale, commandes clients et interface cuisine'
+  },
+  {
+    icon: Receipt,
+    title: 'Facturation & paiements',
+    desc: 'Wave, Orange Money, MTN et Moov intégrés'
+  },
+  {
+    icon: Users,
+    title: 'Multi-utilisateurs',
+    desc: 'Rôles dédiés : réception, ménage, cuisine, comptabilité…'
+  }
+];
+
 export default function RegisterPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-12 bg-gradient-to-br from-brand-50 to-white">
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-        {/* Pitch côté gauche */}
-        <div className="hidden lg:block">
-          <Link href="/" className="inline-flex items-center gap-2 text-brand-700 mb-6">
-            <Hotel className="w-8 h-8" />
-            <span className="text-2xl font-bold">GestHotel</span>
-          </Link>
+    <main className="min-h-screen grid lg:grid-cols-2">
+      {/* PANNEAU GAUCHE — branding */}
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-brand-600 via-brand-700 to-indigo-800 p-10 xl:p-14 text-white">
+        {/* halos décoratifs */}
+        <div className="absolute -right-16 -top-16 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute -left-10 bottom-10 w-56 h-56 bg-white/5 rounded-full blur-2xl" />
 
-          <h1 className="text-4xl font-bold text-slate-900 leading-tight mb-4">
+        {/* logo */}
+        <Link href="/" className="relative flex items-center gap-2.5">
+          <span className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center">
+            <Hotel className="w-6 h-6" />
+          </span>
+          <span className="text-2xl font-bold tracking-tight">GestHotel</span>
+        </Link>
+
+        {/* accroche + features */}
+        <div className="relative">
+          <h1 className="text-4xl xl:text-[2.75rem] font-bold leading-tight">
             Digitalisez votre hôtel<br />en quelques minutes.
           </h1>
-          <p className="text-lg text-slate-600 mb-8">
-            Chambres, réservations, restaurant QR, facturation et mobile money — tout dans une seule plateforme.
+          <p className="mt-4 text-brand-100 text-lg max-w-md">
+            Chambres, réservations, restaurant et facturation — tout dans une seule plateforme.
           </p>
 
-          <ul className="space-y-3 text-slate-700">
-            {[
-              'Gestion des chambres et réservations',
-              'Calendrier interactif des disponibilités',
-              'Restaurant avec QR code et interface cuisine',
-              'Facturation + paiements Wave / OM / MTN / Moov',
-              'Multi-utilisateurs avec rôles (réception, ménage, cuisine…)'
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-2">
-                <Check className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                <span>{item}</span>
-              </li>
+          <div className="mt-10 space-y-3 max-w-md">
+            {FEATURES.map(({ icon: Icon, title, desc }) => (
+              <div
+                key={title}
+                className="flex items-start gap-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/15 p-4"
+              >
+                <span className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+                  <Icon className="w-5 h-5" />
+                </span>
+                <div>
+                  <p className="font-semibold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-300" /> {title}
+                  </p>
+                  <p className="text-sm text-brand-100">{desc}</p>
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
 
-        {/* Formulaire côté droit */}
-        <div>
-          <Link href="/" className="lg:hidden flex items-center justify-center gap-2 text-brand-700 mb-6">
-            <Hotel className="w-8 h-8" />
-            <span className="text-2xl font-bold">GestHotel</span>
+        <p className="relative text-xs text-brand-100/80">
+          © {new Date().getFullYear()} GestHotel — La gestion hôtelière simplifiée.
+        </p>
+      </div>
+
+      {/* PANNEAU DROIT — formulaire */}
+      <div className="flex items-center justify-center bg-white px-6 py-12 sm:px-10">
+        <div className="w-full max-w-md">
+          {/* logo compact (mobile uniquement) */}
+          <Link href="/" className="lg:hidden flex items-center justify-center gap-2 text-brand-700 mb-8">
+            <span className="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center">
+              <Hotel className="w-5 h-5" />
+            </span>
+            <span className="text-xl font-bold">GestHotel</span>
           </Link>
 
-          <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
-            <h2 className="text-2xl font-bold text-slate-900 mb-1">Créer votre compte</h2>
-            <p className="text-slate-500 mb-6">Vous serez automatiquement administrateur de votre hôtel.</p>
+          <h2 className="text-2xl font-bold text-slate-900">Créer votre compte</h2>
+          <p className="text-slate-500 mt-1 mb-7">Vous serez automatiquement administrateur de votre hôtel.</p>
 
-            <RegisterForm />
+          <RegisterForm />
 
-            <p className="text-center text-sm text-slate-500 mt-6">
-              Déjà inscrit ?{' '}
-              <Link href="/login" className="text-brand-600 hover:underline font-medium">
-                Se connecter
-              </Link>
-            </p>
-          </div>
+          <p className="text-center text-sm text-slate-500 mt-6">
+            Déjà inscrit ?{' '}
+            <Link href="/login" className="text-brand-600 hover:underline font-semibold">
+              Se connecter
+            </Link>
+          </p>
         </div>
       </div>
     </main>
