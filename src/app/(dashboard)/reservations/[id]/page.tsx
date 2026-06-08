@@ -9,6 +9,7 @@ import { ReservationStatusBadge } from '@/components/ui/reservation-status-badge
 import { formatDate, formatDateTime, formatMoney } from '@/lib/utils/format';
 import { ReservationActions } from './reservation-actions';
 import { GuestWhatsapp } from './guest-whatsapp';
+import { GenerateInvoiceButton } from './generate-invoice-button';
 
 export const metadata = { title: 'Détail réservation — GestHotel' };
 
@@ -39,6 +40,16 @@ export default async function ReservationDetailPage(props: { params: Promise<{ i
     .eq('id', user.profile.hotel_id!)
     .maybeSingle();
   const hotelNom = (hotelRow as any)?.nom ?? '';
+
+  // Facture existante liée à cette réservation (hors annulée)
+  const { data: existingInvoice } = await supabase
+    .from('invoices')
+    .select('id')
+    .eq('reservation_id', res.id)
+    .neq('statut', 'annulee')
+    .limit(1)
+    .maybeSingle();
+
   const restant = Number(res.prix_total) - Number(res.acompte);
   const nights = Math.round(
     (new Date(res.date_depart).getTime() - new Date(res.date_arrivee).getTime()) / 86400000
@@ -71,6 +82,12 @@ export default async function ReservationDetailPage(props: { params: Promise<{ i
               </Button>
             </Link>
             <ReservationActions id={res.id} status={res.statut} />
+            {res.statut !== 'annulee' && (
+              <GenerateInvoiceButton
+                reservationId={res.id}
+                existingInvoiceId={(existingInvoice as any)?.id ?? null}
+              />
+            )}
           </>
         }
       />

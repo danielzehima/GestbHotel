@@ -46,7 +46,7 @@ export function MenuItemRow({
   }
 
   return (
-    <div className={`flex items-start justify-between gap-3 p-4 border-b border-slate-100 last:border-b-0 ${!item.disponible ? 'opacity-50' : ''}`}>
+    <div className={`flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-3 p-4 border-b border-slate-100 last:border-b-0 ${!item.disponible ? 'opacity-50' : ''}`}>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <h4 className="font-semibold text-slate-900">{item.nom}</h4>
@@ -68,7 +68,7 @@ export function MenuItemRow({
         )}
       </div>
 
-      <div className="text-right flex items-center gap-3">
+      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
         <div className="font-bold text-slate-900">{formatMoney(Number(item.prix))}</div>
         {canManage && (
           <div className="flex items-center gap-1">

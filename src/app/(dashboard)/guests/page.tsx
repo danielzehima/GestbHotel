@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { GuestSearch } from './guest-search';
 
 export const metadata = { title: 'Clients — GestHotel' };
 
@@ -43,15 +44,7 @@ export default async function GuestsPage(props: { searchParams: Promise<SearchPa
         }
       />
 
-      <form action="/guests" className="mb-4">
-        <input
-          type="search"
-          name="q"
-          defaultValue={q ?? ''}
-          placeholder="Rechercher nom, email, téléphone…"
-          className="w-full max-w-md px-3 py-2 rounded-lg border border-slate-300 bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none text-sm"
-        />
-      </form>
+      <GuestSearch initialQuery={q ?? ''} />
 
       {!guests || guests.length === 0 ? (
         <EmptyState
