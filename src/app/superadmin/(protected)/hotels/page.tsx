@@ -49,7 +49,7 @@ export default async function SuperadminHotelsPage(props: { searchParams: Promis
         description="Tous les tenants inscrits sur la plateforme. Données d'abonnement uniquement — pas de revenu hôtelier privé."
       />
 
-      <div className="flex gap-2 mb-4 text-sm">
+      <div className="flex flex-wrap gap-2 mb-4 text-sm">
         <Pill href="/superadmin/hotels" label="Tous" active={filter === 'all'} count={counts.all} />
         <Pill href="/superadmin/hotels?filter=paid" label="Abonnés payants" active={filter === 'paid'} count={counts.paid} tone="brand" />
         <Pill href="/superadmin/hotels?filter=trial" label="Essais actifs" active={filter === 'trial'} count={counts.trial} tone="amber" />
