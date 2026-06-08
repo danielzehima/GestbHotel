@@ -67,6 +67,11 @@ export function RoomsGrid({
         })}
       </div>
 
+      {rooms.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 py-12 text-center text-sm text-slate-500">
+          Aucune chambre dans ce statut.
+        </div>
+      ) : (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {rooms.map((room) => (
           <div
@@ -118,6 +123,7 @@ export function RoomsGrid({
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

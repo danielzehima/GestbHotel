@@ -18,13 +18,11 @@ export default async function RoomsPage(props: { searchParams: Promise<SearchPar
   const { statut } = await props.searchParams;
   const supabase = await createClient();
 
-  let query = supabase
+  const query = supabase
     .from('rooms')
     .select('*, room_type:room_types(id, libelle, type, prix_nuit)')
     .eq('hotel_id', user.profile.hotel_id!)
     .order('numero');
-
-  if (statut) query = query.eq('statut', statut);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -55,6 +53,13 @@ export default async function RoomsPage(props: { searchParams: Promise<SearchPar
       ? { ...r, statut: 'occupee' }
       : r
   );
+
+  // Filtrer sur le statut AFFICHÉ (après prise en compte des réservations du jour)
+  const roomsFiltered = statut
+    ? roomsDisplayed.filter((r: any) => r.statut === statut)
+    : roomsDisplayed;
+
+  const hasAnyRoom = (rooms ?? []).length > 0;
 
   const canManage = user.profile.role === 'admin' || user.profile.role === 'receptionniste';
 
@@ -89,17 +94,13 @@ export default async function RoomsPage(props: { searchParams: Promise<SearchPar
         }
       />
 
-      {(!rooms || rooms.length === 0) ? (
+      {!hasAnyRoom ? (
         <EmptyState
           icon={BedDouble}
-          title={statut ? 'Aucune chambre dans ce statut' : 'Aucune chambre enregistrée'}
-          description={
-            statut
-              ? 'Essayez un autre filtre ou ajoutez une chambre.'
-              : 'Commencez par créer un type de chambre, puis ajoutez vos chambres physiques.'
-          }
+          title="Aucune chambre enregistrée"
+          description="Commencez par créer un type de chambre, puis ajoutez vos chambres physiques."
           action={
-            canManage && !statut ? (
+            canManage ? (
               <Link href="/rooms/types/new">
                 <Button>
                   <Plus className="w-4 h-4" />
@@ -111,7 +112,7 @@ export default async function RoomsPage(props: { searchParams: Promise<SearchPar
         />
       ) : (
         <RoomsGrid
-          rooms={roomsDisplayed as unknown as Room[]}
+          rooms={roomsFiltered as unknown as Room[]}
           types={(types ?? []) as RoomType[]}
           canManage={canManage}
           currentStatus={statut}
