@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { ArrowRight, Sparkles, BedDouble, Receipt, UtensilsCrossed, ClipboardList } from 'lucide-react';
+import Image from 'next/image';
+import { ArrowRight, Sparkles, BedDouble, Receipt, UtensilsCrossed, ClipboardList, CheckCircle2 } from 'lucide-react';
 
 export function Hero() {
   return (
@@ -12,43 +13,83 @@ export function Hero() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-1.5 text-xs font-medium text-slate-600 shadow-sm mb-6">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
-            Nouvelle version — Conçu pour les hôtels d'Afrique de l'Ouest
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-10 items-center">
+          {/* Colonne texte */}
+          <div className="text-center lg:text-left max-w-2xl mx-auto lg:mx-0">
+            <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-1.5 text-xs font-medium text-slate-600 shadow-sm mb-6">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+              Nouvelle version — Conçu pour les hôtels d'Afrique de l'Ouest
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 leading-[1.1]">
+              La gestion hôtelière,{' '}
+              <span className="bg-gradient-to-r from-brand-600 to-emerald-600 bg-clip-text text-transparent">
+                enfin simple
+              </span>{' '}
+              et complète.
+            </h1>
+
+            <p className="mt-6 text-lg sm:text-xl text-slate-600 leading-relaxed">
+              Réservations, chambres, restaurant QR, facturation Mobile Money — pilotez tout votre hôtel depuis une seule plateforme, en français, optimisée pour vos équipes locales.
+            </p>
+
+            <div className="mt-10 flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3">
+              <Link
+                href="/register"
+                className="group inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3.5 rounded-xl shadow-lg shadow-brand-600/20 hover:shadow-xl hover:shadow-brand-600/30 transition-all"
+              >
+                Essayer gratuitement pendant 21 jours
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition" />
+              </Link>
+              <Link
+                href="#features"
+                className="inline-flex items-center gap-2 bg-white border border-slate-300 text-slate-700 font-semibold px-6 py-3.5 rounded-xl hover:bg-slate-50 transition"
+              >
+                Découvrir les fonctionnalités
+              </Link>
+            </div>
+
+            <p className="mt-4 text-xs text-slate-500">
+              Aucune carte bancaire requise · Accès illimité gratuit pour les chercheurs et administrations publiques
+            </p>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 leading-[1.1]">
-            La gestion hôtelière,{' '}
-            <span className="bg-gradient-to-r from-brand-600 to-emerald-600 bg-clip-text text-transparent">
-              enfin simple
-            </span>{' '}
-            et complète.
-          </h1>
+          {/* Colonne image */}
+          <div className="relative max-w-lg mx-auto lg:mx-0 w-full">
+            <div className="absolute -inset-4 bg-gradient-to-br from-brand-200 to-emerald-200 rounded-[2rem] blur-2xl opacity-40" />
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/60 ring-1 ring-slate-200/50">
+              <Image
+                src="/chambre-hero.jpg"
+                alt="Chambre d'hôtel élégante gérée avec GestHotel"
+                width={736}
+                height={736}
+                priority
+                className="w-full h-auto object-cover"
+              />
+            </div>
 
-          <p className="mt-6 text-lg sm:text-xl text-slate-600 leading-relaxed">
-            Réservations, chambres, restaurant QR, facturation Mobile Money — pilotez tout votre hôtel depuis une seule plateforme, en français, optimisée pour vos équipes locales.
-          </p>
+            {/* Carte flottante : occupation */}
+            <div className="absolute -top-4 -right-2 sm:-right-5 bg-white rounded-2xl shadow-xl border border-slate-100 px-4 py-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center">
+                <BedDouble className="w-4 h-4 text-brand-600" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Occupation</p>
+                <p className="text-lg font-bold text-slate-900 leading-none">87%</p>
+              </div>
+            </div>
 
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              href="/register"
-              className="group inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3.5 rounded-xl shadow-lg shadow-brand-600/20 hover:shadow-xl hover:shadow-brand-600/30 transition-all"
-            >
-              Essayer gratuitement pendant 21 jours
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition" />
-            </Link>
-            <Link
-              href="#features"
-              className="inline-flex items-center gap-2 bg-white border border-slate-300 text-slate-700 font-semibold px-6 py-3.5 rounded-xl hover:bg-slate-50 transition"
-            >
-              Découvrir les fonctionnalités
-            </Link>
+            {/* Carte flottante : réservation confirmée */}
+            <div className="absolute -bottom-4 -left-2 sm:-left-5 bg-white rounded-2xl shadow-xl border border-slate-100 px-4 py-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-900 leading-tight">Réservation confirmée</p>
+                <p className="text-[11px] text-slate-500">Paiement Wave reçu · 25 000 F</p>
+              </div>
+            </div>
           </div>
-
-          <p className="mt-4 text-xs text-slate-500">
-            Aucune carte bancaire requise · Accès illimité gratuit pour les chercheurs et administrations publiques
-          </p>
         </div>
 
         {/* Mockup tableau de bord */}
