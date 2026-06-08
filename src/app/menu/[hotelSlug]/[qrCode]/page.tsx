@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { Hotel, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { formatMoney } from '@/lib/utils/format';
+import { MenuOrder, type MenuCategory } from './menu-order';
 
 export const metadata = { title: 'Carte du restaurant' };
 export const revalidate = 60;
@@ -65,6 +65,21 @@ export default async function PublicMenuPage(props: {
 
   const h = hotel as any;
   const t = table as any;
+  const tableLabel = `Table ${t.numero}${t.zone ? ` · ${t.zone}` : ''}`;
+
+  // Catégories ordonnées pour le composant de commande
+  const categories: MenuCategory[] = CAT_ORDER.filter((c) => grouped.has(c)).map((cat) => ({
+    cat,
+    label: CAT_LABELS[cat] ?? cat,
+    items: grouped.get(cat)!.map((i: any) => ({
+      id: i.id,
+      nom: i.nom,
+      description: i.description ?? null,
+      prix: Number(i.prix),
+      allergenes: Array.isArray(i.allergenes) ? i.allergenes : [],
+      temps_preparation_min: i.temps_preparation_min ?? null
+    }))
+  }));
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-brand-50 to-white pb-12">
@@ -87,57 +102,23 @@ export default async function PublicMenuPage(props: {
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 pt-6">
-        <h2 className="text-2xl font-bold text-slate-900 mb-1">Notre carte</h2>
-        <p className="text-slate-600 mb-6">Choisissez vos plats et appelez votre serveur pour commander.</p>
-
-        {allItems.length === 0 ? (
+      {categories.length === 0 ? (
+        <div className="max-w-2xl mx-auto px-4 pt-6">
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
             <AlertCircle className="w-8 h-8 mx-auto text-amber-500 mb-2" />
             <p className="font-medium text-amber-900">Carte indisponible pour le moment</p>
             <p className="text-sm text-amber-700 mt-1">Demandez à votre serveur.</p>
           </div>
-        ) : (
-          <div className="space-y-8">
-            {CAT_ORDER.filter((c) => grouped.has(c)).map((cat) => (
-              <section key={cat}>
-                <h3 className="text-lg font-bold text-slate-900 mb-3 sticky top-16 bg-gradient-to-b from-brand-50 to-brand-50/80 py-2 -mx-4 px-4">
-                  {CAT_LABELS[cat] ?? cat}
-                </h3>
-                <div className="space-y-3">
-                  {grouped.get(cat)!.map((item) => (
-                    <div key={item.id} className="bg-white rounded-xl border border-slate-200 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-slate-900">{item.nom}</h4>
-                          {item.description && (
-                            <p className="text-sm text-slate-600 mt-1">{item.description}</p>
-                          )}
-                          {item.allergenes?.length > 0 && (
-                            <p className="text-xs text-amber-700 mt-1">
-                              Allergènes : {item.allergenes.join(', ')}
-                            </p>
-                          )}
-                          {item.temps_preparation_min && (
-                            <p className="text-xs text-slate-400 mt-1">⏱ ~{item.temps_preparation_min} min</p>
-                          )}
-                        </div>
-                        <div className="font-bold text-brand-700 whitespace-nowrap">
-                          {formatMoney(Number(item.prix), h.devise ?? 'XOF')}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
-
-        <footer className="mt-12 text-center text-xs text-slate-400">
-          Propulsé par <strong>GestHotel</strong>
-        </footer>
-      </div>
+        </div>
+      ) : (
+        <MenuOrder
+          categories={categories}
+          hotelSlug={hotelSlug}
+          qrCode={qrCode}
+          devise={h.devise ?? 'XOF'}
+          tableLabel={tableLabel}
+        />
+      )}
     </main>
   );
 }
