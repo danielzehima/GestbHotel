@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Check, Sparkles, MessageCircle, Mail, Phone, ArrowLeft, ShieldCheck } from 'lucide-react';
-import { requireUser } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { getPlanStatus, PLAN_LABELS } from '@/lib/plan';
 import { getPlanPrices } from '@/lib/plan-prices';
@@ -16,7 +16,7 @@ const PAYMENT_PHONE_RAW = '+2250710075257';
 const PAYMENT_EMAIL = 'danielzehima@gmail.com';
 
 export default async function UpgradePage() {
-  const user = await requireUser();
+  const user = await requireRole(['admin']);
   let status = null;
   let hotelNom = '';
 

@@ -1,21 +1,27 @@
 import Link from 'next/link';
 import { UtensilsCrossed, BookOpen, QrCode, ChefHat, ClipboardList } from 'lucide-react';
-import { requireUser } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
+import type { UserRole } from '@/types/database';
 
 export const metadata = { title: 'Restaurant — GestHotel' };
 
-const TILES = [
-  { href: '/restaurant/menus', label: 'Cartes & Menus', icon: BookOpen, desc: 'Gérer plats et catégories' },
-  { href: '/restaurant/tables', label: 'Tables (QR codes)', icon: QrCode, desc: 'Tables et QR clients' },
-  { href: '/restaurant/orders', label: 'Commandes', icon: ClipboardList, desc: 'Prise de commande & suivi' },
-  { href: '/restaurant/kitchen', label: 'Cuisine', icon: ChefHat, desc: 'Vue temps réel des préparations' }
+const TILES: { href: string; label: string; icon: any; desc: string; roles: UserRole[] }[] = [
+  { href: '/restaurant/menus', label: 'Cartes & Menus', icon: BookOpen, desc: 'Gérer plats et catégories',
+    roles: ['admin', 'cuisine', 'serveur', 'receptionniste'] },
+  { href: '/restaurant/tables', label: 'Tables (QR codes)', icon: QrCode, desc: 'Tables et QR clients',
+    roles: ['admin', 'serveur', 'receptionniste'] },
+  { href: '/restaurant/orders', label: 'Commandes', icon: ClipboardList, desc: 'Prise de commande & suivi',
+    roles: ['admin', 'serveur', 'cuisine', 'receptionniste'] },
+  { href: '/restaurant/kitchen', label: 'Cuisine', icon: ChefHat, desc: 'Vue temps réel des préparations',
+    roles: ['admin', 'cuisine'] }
 ];
 
 export default async function RestaurantHub() {
-  const user = await requireUser();
+  const user = await requireRole(['admin', 'serveur', 'cuisine', 'receptionniste']);
+  const tiles = TILES.filter((t) => t.roles.includes(user.profile.role));
   const supabase = await createClient();
 
   const today = new Date().toISOString().slice(0, 10);
@@ -42,7 +48,7 @@ export default async function RestaurantHub() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {TILES.map((t) => (
+        {tiles.map((t) => (
           <Link
             key={t.href}
             href={t.href}

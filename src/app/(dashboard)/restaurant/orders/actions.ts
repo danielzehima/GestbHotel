@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import { requireRole, requireUser } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 import type { OrderStatus } from '@/types/database';
 
 export type ActionResult<T = undefined> =
@@ -80,7 +80,7 @@ export async function createOrder(payload: unknown): Promise<ActionResult<{ id: 
 }
 
 export async function updateOrderStatus(id: string, statut: OrderStatus): Promise<ActionResult> {
-  await requireUser();
+  await requireRole(['admin', 'serveur', 'cuisine', 'receptionniste']);
   const supabase = await createClient();
   const { error } = await supabase.from('orders').update({ statut }).eq('id', id);
   if (error) return { ok: false, error: error.message };

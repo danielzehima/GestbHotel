@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import { requireRole, requireUser } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -51,7 +51,7 @@ export async function assignTask(id: string, assigneeId: string): Promise<Action
 }
 
 export async function startTask(id: string): Promise<ActionResult> {
-  const user = await requireUser();
+  await requireRole(['admin', 'receptionniste', 'menage']);
   const supabase = await createClient();
   const { error } = await supabase
     .from('housekeeping_tasks')
@@ -75,7 +75,7 @@ export async function startTask(id: string): Promise<ActionResult> {
 }
 
 export async function completeTask(id: string): Promise<ActionResult> {
-  await requireUser();
+  await requireRole(['admin', 'receptionniste', 'menage']);
   const supabase = await createClient();
   const { error } = await supabase
     .from('housekeeping_tasks')

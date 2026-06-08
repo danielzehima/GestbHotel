@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Plus, Pencil, BookOpen } from 'lucide-react';
-import { requireUser } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ const CATEGORIE_LABELS: Record<string, string> = {
 const CATEGORIE_ORDER = ['petit_dejeuner', 'entree', 'plat', 'dessert', 'menu_enfant', 'boisson', 'special'];
 
 export default async function MenuDetailPage(props: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const user = await requireRole(['admin', 'cuisine', 'serveur', 'receptionniste']);
   const { id } = await props.params;
   const supabase = await createClient();
 

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { CalendarClock, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { requireUser } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ function isoDay(d: Date) {
 type SearchParams = { week?: string };
 
 export default async function ShiftsPage(props: { searchParams: Promise<SearchParams> }) {
-  const user = await requireUser();
+  const user = await requireRole(['admin', 'receptionniste', 'menage', 'serveur', 'cuisine']);
   const { week } = await props.searchParams;
   const supabase = await createClient();
 

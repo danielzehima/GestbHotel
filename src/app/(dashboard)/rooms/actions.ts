@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import { requireRole, requireUser } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 import { getHotelPlanLimits, checkLimit } from '@/lib/plan-limits';
 import type { RoomStatus } from '@/types/database';
 
@@ -185,7 +185,7 @@ export async function bulkCreateRooms(formData: FormData): Promise<ActionResult 
 }
 
 export async function changeRoomStatus(id: string, statut: RoomStatus): Promise<ActionResult> {
-  await requireUser();
+  await requireRole(['admin', 'receptionniste', 'menage']);
   const supabase = await createClient();
   const { error } = await supabase.from('rooms').update({ statut }).eq('id', id);
   if (error) return { ok: false, error: error.message };
